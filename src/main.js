@@ -1,6 +1,7 @@
 const path = require("node:path");
 const fs = require("node:fs/promises");
 const { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const { openDocument, SUPPORTED_EXTENSIONS } = require("./documentReader");
 const { saveDocument } = require("./documentWriter");
 
@@ -73,6 +74,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  if (app.isPackaged) {
+    // Downloads in the background, notifies the user, installs on quit.
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

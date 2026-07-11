@@ -1,6 +1,6 @@
 {
   "name": "docopen",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "A dead simple dark-mode Electron app for opening Word, Excel, and PDF documents.",
   "author": "Retile",
   "main": "src/main.js",
@@ -12,11 +12,18 @@
     "ui-check": "electron scripts/ui-check.js",
     "build": "electron-builder --win nsis",
     "pack": "electron-builder --dir",
-    "dist:win": "electron-builder --win nsis"
+    "dist:win": "electron-builder --win nsis",
+    "release": "electron-builder --win nsis --publish always"
   },
   "build": {
     "appId": "local.document-opener",
     "productName": "DocOpen",
+    "publish": {
+      "provider": "github",
+      "owner": "MrBeanTheOne",
+      "repo": "DocOpen",
+      "releaseType": "release"
+    },
     "win": {
       "icon": "src/assets/icon.ico",
       "target": "nsis"
@@ -78,6 +85,7 @@
     ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "exceljs": "^4.4.0",
     "mammoth": "^1.8.0"
   },
