@@ -1,6 +1,6 @@
 {
   "name": "docopen",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A dead simple dark-mode Electron app for opening Word, Excel, and PDF documents.",
   "author": "Retile",
   "main": "src/main.js",

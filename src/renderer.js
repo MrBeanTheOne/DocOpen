@@ -8,6 +8,8 @@ const newTextButton = document.querySelector("#newTextButton");
 const newCsvButton = document.querySelector("#newCsvButton");
 const newImageButton = document.querySelector("#newImageButton");
 const editButton = document.querySelector("#editButton");
+const rawViewButton = document.querySelector("#rawViewButton");
+const formatJsonButton = document.querySelector("#formatJsonButton");
 const editButtonLabel = document.querySelector("#editButtonLabel");
 const saveButton = document.querySelector("#saveButton");
 const saveButtonLabel = document.querySelector("#saveButtonLabel");
@@ -352,6 +354,40 @@ editToolbar.addEventListener("change", (event) => {
     runWordCommand("foreColor", fontColorInput.value);
   } else if (event.target === highlightColorInput) {
     runWordCommand("hiliteColor", highlightColorInput.value);
+  }
+});
+
+rawViewButton.addEventListener("click", () => {
+  if (!currentDocument || editMode || !supportsRawView(currentDocument)) {
+    return;
+  }
+
+  currentDocument.rawView = !currentDocument.rawView;
+  if (currentDocument.kind === "workbook") {
+    renderWorkbook(currentDocument);
+  } else {
+    renderMarkdown(currentDocument);
+  }
+  updateRawViewControls();
+});
+
+formatJsonButton.addEventListener("click", () => {
+  const textarea = viewer.querySelector(".markdown-editor");
+  if (!textarea || !isJsonDocument(currentDocument)) {
+    return;
+  }
+
+  try {
+    textarea.value = JSON.stringify(JSON.parse(textarea.value), null, 2);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    setStatus("Formatted");
+  } catch (error) {
+    showAlert({
+      title: "Invalid JSON",
+      message: `The document is not valid JSON: ${error.message}`,
+      tone: "danger",
+      primaryLabel: "OK"
+    });
   }
 });
 
@@ -1010,10 +1046,18 @@ function renderMarkdown(docData) {
     return;
   }
 
-  if (docData.kind === "text") {
+  if (docData.kind === "text" || docData.rawView) {
     const pre = document.createElement("pre");
     pre.className = `text-document document-surface width-${getDocumentLayout(docData)}`;
-    pre.textContent = docData.text || "";
+    // JSON defaults to a pretty, highlighted view; the Raw toggle (or
+    // unparseable JSON) falls back to the text exactly as on disk.
+    const highlighted = isJsonDocument(docData) && !docData.rawView ? highlightJson(docData.text || "") : null;
+    if (highlighted !== null) {
+      pre.classList.add("json-view");
+      pre.innerHTML = highlighted;
+    } else {
+      pre.textContent = docData.text || "";
+    }
     viewer.replaceChildren(pre);
     return;
   }
@@ -1022,6 +1066,36 @@ function renderMarkdown(docData) {
   article.className = `markdown-document document-surface width-${getDocumentLayout(docData)}`;
   article.innerHTML = markdownToHtml(docData.text || "");
   viewer.replaceChildren(article);
+}
+
+// Pretty-print + tokenize JSON into highlight spans. Returns null when the
+// text isn't valid JSON so callers fall back to the plain view.
+function highlightJson(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+
+  const pretty = JSON.stringify(parsed, null, 2);
+  const token = /("(?:\\.|[^"\\])*")(\s*:)?|\b(?:true|false)\b|\bnull\b|-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g;
+  let html = "";
+  let last = 0;
+  let match;
+  while ((match = token.exec(pretty))) {
+    html += escapeHtml(pretty.slice(last, match.index));
+    if (match[2]) {
+      html += `<span class="json-key">${escapeHtml(match[1])}</span>${match[2]}`;
+    } else {
+      const value = match[0];
+      const cls = match[1] ? "json-string" : value === "null" ? "json-null" : value === "true" || value === "false" ? "json-boolean" : "json-number";
+      html += `<span class="${cls}">${escapeHtml(value)}</span>`;
+    }
+    last = match.index + match[0].length;
+  }
+  html += escapeHtml(pretty.slice(last));
+  return html;
 }
 
 function renderImageDocument(imageData) {
@@ -1865,6 +1939,22 @@ function movePaintHistory(fromStack, toStack) {
 function renderWorkbook(workbookData) {
   wordEditor = null;
   savedWordRange = null;
+
+  // CSV raw view: the serialized text instead of the grid (view mode only).
+  // syncWorkbookFromDom is grid-guarded, so the model survives the detour.
+  if (!editMode && workbookData.rawView && workbookData.extension === ".csv") {
+    sheetPanel.hidden = true;
+    selectedCell = null;
+    selectedRange = null;
+    rangeAnchor = null;
+    updateSelectionLabel();
+    const pre = document.createElement("pre");
+    pre.className = `text-document document-surface width-${getDocumentLayout(workbookData)}`;
+    pre.textContent = csvTextForSheet(workbookData.sheets[selectedSheetIndex] || workbookData.sheets[0]);
+    viewer.replaceChildren(pre);
+    return;
+  }
+
   sheetPanel.hidden = workbookData.sheets.length === 0;
   sheetList.replaceChildren(
     ...workbookData.sheets.map((sheet, index) => {
@@ -3818,6 +3908,30 @@ function updateToolbarForDocument() {
   });
   updateSelectionLabel();
   updateLayoutControls();
+  updateRawViewControls();
+}
+
+// Raw view is a VIEW-mode alternate rendering: markdown preview <-> raw text,
+// CSV grid <-> raw CSV text, JSON pretty/highlighted <-> text as on disk.
+function supportsRawView(documentData) {
+  if (!documentData) {
+    return false;
+  }
+  return (
+    documentData.kind === "markdown" ||
+    isJsonDocument(documentData) ||
+    (documentData.kind === "workbook" && documentData.extension === ".csv")
+  );
+}
+
+function isJsonDocument(documentData) {
+  return documentData?.kind === "text" && documentData.extension === ".json";
+}
+
+function updateRawViewControls() {
+  rawViewButton.hidden = editMode || !supportsRawView(currentDocument);
+  rawViewButton.setAttribute("aria-pressed", String(Boolean(currentDocument?.rawView)));
+  formatJsonButton.hidden = !editMode || !isJsonDocument(currentDocument);
 }
 
 function setDocumentLayout(width) {
@@ -4764,6 +4878,17 @@ function sortSheetByColumn(sheet, columnIndex, direction) {
   });
   sheet.rows = zipped.map((entry) => entry.row);
   sheet.rowHeights = zipped.map((entry) => entry.height);
+}
+
+function csvTextForSheet(sheet) {
+  if (!sheet) {
+    return "";
+  }
+  const field = (value) => {
+    const text = String(value ?? "");
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  return sheet.rows.map((row) => row.map(field).join(",")).join("\n");
 }
 
 function compareCellValues(leftText, rightText) {

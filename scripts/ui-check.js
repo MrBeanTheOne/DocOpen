@@ -358,6 +358,51 @@ const TEST = `(async () => {
   check(paint2Ctx.getImageData(40, 40, 1, 1).data[1] === 0, "tolerant fill should bleed across the 7-value difference");
   document.querySelector("#fillToleranceSelect").value = "32";
 
+  // 15. Raw view toggles (markdown/JSON/CSV) + JSON pretty view + Format.
+  await createNewDocument("markdown");
+  document.querySelector(".markdown-editor").value = "# Hello Raw";
+  document.querySelector(".markdown-editor").dispatchEvent(new Event("input", { bubbles: true }));
+  setEditMode(false);
+  check(Boolean(document.querySelector(".markdown-document")), "markdown view mode should render the preview");
+  check(!document.querySelector("#rawViewButton").hidden, "raw view button should show for markdown in view mode");
+  document.querySelector("#rawViewButton").click();
+  const mdPre = document.querySelector(".text-document");
+  check(mdPre && mdPre.textContent === "# Hello Raw", "markdown raw view should show the raw text, got " + JSON.stringify(mdPre?.textContent));
+  document.querySelector("#rawViewButton").click();
+  check(Boolean(document.querySelector(".markdown-document")), "toggling raw off should restore the preview");
+
+  await createNewDocument("text");
+  currentDocument.extension = ".json";
+  currentDocument.fileName = "test.json";
+  const jsonRaw = '{"name":"docopen","count":3,"ok":true,"nothing":null}';
+  document.querySelector(".markdown-editor").value = jsonRaw;
+  document.querySelector(".markdown-editor").dispatchEvent(new Event("input", { bubbles: true }));
+  setEditMode(false);
+  const jsonPre = document.querySelector(".text-document");
+  check(Boolean(jsonPre?.classList.contains("json-view")), "JSON view mode should default to the pretty view");
+  check(jsonPre?.querySelectorAll(".json-key").length === 4, "pretty JSON should highlight 4 keys, got " + jsonPre?.querySelectorAll(".json-key").length);
+  check(Boolean(jsonPre?.textContent.includes('  "name": "docopen"')), "pretty JSON should be indented");
+  document.querySelector("#rawViewButton").click();
+  check(document.querySelector(".text-document")?.textContent === jsonRaw, "JSON raw view should show the text exactly as typed");
+  setEditMode(true);
+  check(!document.querySelector("#formatJsonButton").hidden, "Format button should show for JSON in edit mode");
+  document.querySelector("#formatJsonButton").click();
+  check(
+    document.querySelector(".markdown-editor").value === JSON.stringify(JSON.parse(jsonRaw), null, 2),
+    "Format should pretty-print the JSON in place, got " + JSON.stringify(document.querySelector(".markdown-editor").value)
+  );
+
+  await createNewDocument("csv");
+  setEditMode(false);
+  currentDocument.sheets[0].rows = [["a", "b,c"], ["1", "2"]];
+  document.querySelector("#rawViewButton").click();
+  check(
+    document.querySelector(".text-document")?.textContent === 'a,"b,c"\\n1,2',
+    "CSV raw view should serialize with quoting, got " + JSON.stringify(document.querySelector(".text-document")?.textContent)
+  );
+  document.querySelector("#rawViewButton").click();
+  check(Boolean(cell(0, 0)), "toggling raw off should restore the CSV grid");
+
   // Leave no crash-recovery bait behind: app.exit() skips before-quit cleanup.
   await window.documentOpener.clearAutosave();
 

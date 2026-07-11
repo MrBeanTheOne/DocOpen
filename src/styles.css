@@ -1843,6 +1843,26 @@ body[data-document-kind="pdf"] .viewer {
   overflow-wrap: anywhere;
 }
 
+.json-view .json-key {
+  color: #79c0ff;
+}
+
+.json-view .json-string {
+  color: #7ee787;
+}
+
+.json-view .json-number {
+  color: #d2a8ff;
+}
+
+.json-view .json-boolean {
+  color: #ffa657;
+}
+
+.json-view .json-null {
+  color: #ff7b72;
+}
+
 .image-document {
   display: flex;
   width: max-content;
