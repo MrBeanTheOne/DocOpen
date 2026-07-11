@@ -489,6 +489,22 @@
               <option value="16">16 px</option>
               <option value="32">32 px</option>
             </select>
+            <select class="toolbar-select" id="paintFontSelect" aria-label="Text font" title="Text font">
+              <option value="Arial" selected>Arial</option>
+              <option value="Georgia">Georgia</option>
+              <option value="'Times New Roman'">Times New Roman</option>
+              <option value="'Courier New'">Courier New</option>
+              <option value="'Comic Sans MS'">Comic Sans</option>
+              <option value="Impact">Impact</option>
+              <option value="'Segoe UI'">Segoe UI</option>
+            </select>
+            <select class="toolbar-select" id="fillToleranceSelect" aria-label="Fill tolerance" title="Fill tolerance">
+              <option value="0">Exact</option>
+              <option value="16">Tol 16</option>
+              <option value="32" selected>Tol 32</option>
+              <option value="64">Tol 64</option>
+              <option value="96">Tol 96</option>
+            </select>
             <button type="button" class="tool-button" data-image-action="undo" aria-label="Undo paint" title="Undo (Ctrl+Z)">
               <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6 5H10.5a3 3 0 0 1 0 6H7" />
@@ -544,6 +560,7 @@
           <input class="find-input" id="findInput" type="text" placeholder="Find" aria-label="Find" />
           <input class="find-input" id="replaceInput" type="text" placeholder="Replace with" aria-label="Replace with" />
           <button class="find-button" id="replaceButton" type="button">Replace</button>
+          <button class="find-button" id="replaceAllButton" type="button">Replace all</button>
           <button class="find-button find-close" id="findCloseButton" type="button" aria-label="Close find">&times;</button>
         </div>
 

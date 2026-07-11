@@ -51,10 +51,13 @@ const highlightColorInput = document.querySelector("#highlightColorInput");
 const imageInput = document.querySelector("#imageInput");
 const imageColorInput = document.querySelector("#imageColorInput");
 const imageSizeSelect = document.querySelector("#imageSizeSelect");
+const paintFontSelect = document.querySelector("#paintFontSelect");
+const fillToleranceSelect = document.querySelector("#fillToleranceSelect");
 const findBar = document.querySelector("#findBar");
 const findInput = document.querySelector("#findInput");
 const replaceInput = document.querySelector("#replaceInput");
 const replaceButton = document.querySelector("#replaceButton");
+const replaceAllButton = document.querySelector("#replaceAllButton");
 const findCloseButton = document.querySelector("#findCloseButton");
 const promptBar = document.querySelector("#promptBar");
 const promptLabel = document.querySelector("#promptLabel");
@@ -373,6 +376,7 @@ replaceInput.addEventListener("keydown", (event) => {
 });
 
 replaceButton.addEventListener("click", () => replaceCurrentMatch());
+replaceAllButton.addEventListener("click", () => replaceAllMatches());
 findCloseButton.addEventListener("click", () => toggleFindBar(false));
 
 promptBar.addEventListener("mousedown", (event) => {
@@ -442,7 +446,7 @@ document.addEventListener("keydown", async (event) => {
     clearPaintSelection();
   }
 
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f" && currentDocument?.kind === "word") {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f" && FINDABLE_KINDS.has(currentDocument?.kind)) {
     event.preventDefault();
     toggleFindBar(true);
   } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -985,7 +989,6 @@ function renderWord(docData) {
 function renderMarkdown(docData) {
   wordEditor = null;
   savedWordRange = null;
-  toggleFindBar(false);
   sheetPanel.hidden = true;
   sheetList.replaceChildren();
   selectedCell = null;
@@ -1103,6 +1106,65 @@ function renderImagePaint(imageData) {
   const selectionBox = document.createElement("div");
   selectionBox.className = "paint-selection";
   selectionBox.hidden = true;
+
+  // Bottom-right drag grip: resizes the canvas like MS Paint's corner handle.
+  const resizeGrip = document.createElement("div");
+  resizeGrip.className = "paint-resize-grip";
+  resizeGrip.title = "Drag to resize canvas";
+  const resizeGhost = document.createElement("div");
+  resizeGhost.className = "paint-resize-ghost";
+  resizeGhost.hidden = true;
+
+  const positionResizeGrip = () => {
+    resizeGrip.style.left = `${canvas.offsetLeft + canvas.clientWidth}px`;
+    resizeGrip.style.top = `${canvas.offsetTop + canvas.clientHeight}px`;
+  };
+
+  let gripDrag = null;
+  resizeGrip.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    commitPaintText();
+    gripDrag = {
+      startX: event.clientX,
+      startY: event.clientY,
+      width: canvas.width,
+      height: canvas.height,
+      scale: canvas.clientWidth / canvas.width || 1
+    };
+    resizeGrip.setPointerCapture?.(event.pointerId);
+  });
+  resizeGrip.addEventListener("pointermove", (event) => {
+    if (!gripDrag) {
+      return;
+    }
+    const width = clampInt(gripDrag.width + (event.clientX - gripDrag.startX) / gripDrag.scale, 8, 4096);
+    const height = clampInt(gripDrag.height + (event.clientY - gripDrag.startY) / gripDrag.scale, 8, 4096);
+    gripDrag.next = { width, height };
+    resizeGhost.hidden = false;
+    resizeGhost.style.left = `${canvas.offsetLeft}px`;
+    resizeGhost.style.top = `${canvas.offsetTop}px`;
+    resizeGhost.style.width = `${width * gripDrag.scale}px`;
+    resizeGhost.style.height = `${height * gripDrag.scale}px`;
+    setStatus(`${width} × ${height}`);
+  });
+  const endGripDrag = (commit) => {
+    if (!gripDrag) {
+      return;
+    }
+    resizeGhost.hidden = true;
+    if (commit && gripDrag.next) {
+      applyPaintCanvasSize(gripDrag.next.width, gripDrag.next.height);
+    }
+    gripDrag = null;
+  };
+  resizeGrip.addEventListener("pointerup", () => endGripDrag(true));
+  resizeGrip.addEventListener("pointercancel", () => endGripDrag(false));
+
+  // Repositions the grip on zoom, canvas resize, image load, and layout changes.
+  new ResizeObserver(positionResizeGrip).observe(canvas);
 
   const prepareSurface = (width, height, source) => {
     canvas.width = width;
@@ -1330,7 +1392,10 @@ function renderImagePaint(imageData) {
   updatePaintToolButtons();
   shell.appendChild(canvas);
   shell.appendChild(selectionBox);
+  shell.appendChild(resizeGhost);
+  shell.appendChild(resizeGrip);
   viewer.replaceChildren(shell);
+  positionResizeGrip();
 }
 
 function normalizePaintRect(x1, y1, x2, y2) {
@@ -1513,8 +1578,9 @@ function openPaintTextEditor(x, y) {
     return;
   }
 
-  // ponytail: text size rides the brush-size select (x4); add a font picker if asked.
+  // ponytail: text size rides the brush-size select (x4).
   const size = Math.max(12, (Number(imageSizeSelect.value) || 4) * 4);
+  const font = paintFontSelect.value || "Arial";
   const scale = imageCanvas.clientWidth / imageCanvas.width;
   const element = document.createElement("div");
   element.className = "paint-text-editor";
@@ -1523,9 +1589,9 @@ function openPaintTextEditor(x, y) {
   element.style.left = `${imageCanvas.offsetLeft + x * scale}px`;
   element.style.top = `${imageCanvas.offsetTop + y * scale}px`;
   element.style.color = imageColorInput.value;
-  element.style.font = `${size * scale}px Arial`;
+  element.style.font = `${size * scale}px ${font}`;
 
-  paintTextEditor = { element, x, y, size, color: imageColorInput.value };
+  paintTextEditor = { element, x, y, size, font, color: imageColorInput.value };
 
   element.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -1547,7 +1613,7 @@ function commitPaintText() {
     return;
   }
 
-  const { element, x, y, size, color } = paintTextEditor;
+  const { element, x, y, size, font, color } = paintTextEditor;
   paintTextEditor = null;
   const text = element.innerText.replace(/\n+$/, "");
   const box = element.getBoundingClientRect(); // read before removal
@@ -1560,7 +1626,7 @@ function commitPaintText() {
   const context = imageCanvas.getContext("2d");
   context.globalCompositeOperation = "source-over";
   context.fillStyle = color;
-  context.font = `${size}px Arial`;
+  context.font = `${size}px ${font || "Arial"}`;
   context.textBaseline = "top";
   // The box is resizable, so mirror its wrapping and clipping in canvas space.
   const scale = imageCanvas.clientWidth / imageCanvas.width || 1;
@@ -1650,9 +1716,13 @@ async function resizePaintCanvas() {
     return;
   }
 
-  const width = clampInt(match[1], 8, 4096);
-  const height = clampInt(match[2], 8, 4096);
-  if (width === imageCanvas.width && height === imageCanvas.height) {
+  applyPaintCanvasSize(clampInt(match[1], 8, 4096), clampInt(match[2], 8, 4096));
+}
+
+// Content stays anchored at the top-left; new area is transparent on PNG,
+// white on JPEG (no alpha there).
+function applyPaintCanvasSize(width, height) {
+  if (!imageCanvas || !viewer.contains(imageCanvas) || (width === imageCanvas.width && height === imageCanvas.height)) {
     return;
   }
 
@@ -1666,7 +1736,6 @@ async function resizePaintCanvas() {
   imageCanvas.height = height;
   const context = imageCanvas.getContext("2d");
   if (currentDocument?.extension === ".jpg" || currentDocument?.extension === ".jpeg") {
-    // JPEG has no alpha, so new area is white; PNG keeps it transparent.
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);
   }
@@ -1682,8 +1751,6 @@ function syncPaintDocumentSize() {
   }
 }
 
-// ponytail: fixed 32-per-channel tolerance so fills swallow anti-aliased stroke
-// edges; expose it as a tool option if it ever needs tuning.
 function floodFill(context, startX, startY, hexColor) {
   const { width, height } = context.canvas;
   if (startX < 0 || startY < 0 || startX >= width || startY >= height) {
@@ -1704,7 +1771,7 @@ function floodFill(context, startX, startY, hexColor) {
     return;
   }
 
-  const TOLERANCE = 32;
+  const TOLERANCE = Number(fillToleranceSelect.value) || 0;
   const visited = new Uint8Array(width * height);
   const stack = [startY * width + startX];
   while (stack.length > 0) {
@@ -1798,7 +1865,6 @@ function movePaintHistory(fromStack, toStack) {
 function renderWorkbook(workbookData) {
   wordEditor = null;
   savedWordRange = null;
-  toggleFindBar(false);
   sheetPanel.hidden = workbookData.sheets.length === 0;
   sheetList.replaceChildren(
     ...workbookData.sheets.map((sheet, index) => {
@@ -4254,8 +4320,8 @@ function toggleFindBar(forceShow) {
 
 // Concatenate the editor's text nodes into one string plus an index map, so
 // searches can match across formatting boundaries (e.g. a bold-split word).
-function buildTextMap() {
-  const walker = document.createTreeWalker(wordEditor, NodeFilter.SHOW_TEXT);
+function buildTextMap(root = wordEditor) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes = [];
   let text = "";
   while (walker.nextNode()) {
@@ -4295,20 +4361,11 @@ function selectEditorRange(range) {
 
 let findCursor = { term: null, index: 0 };
 
-function findInDocument(backwards) {
-  const term = findInput.value;
-  if (!term || !wordEditor) {
-    return;
-  }
+const FINDABLE_KINDS = new Set(["word", "markdown", "text", "workbook"]);
 
-  const map = buildTextMap();
-  if (map.nodes.length === 0) {
-    setStatus("No matches");
-    return;
-  }
-
-  const haystack = map.text.toLowerCase();
-  const needle = term.toLowerCase();
+// Shared cursor-based substring search: returns the match index or -1,
+// wrapping around when nothing is found past the cursor.
+function nextMatchIndex(haystack, needle, backwards) {
   if (findCursor.term !== needle) {
     findCursor = { term: needle, index: 0 };
   }
@@ -4326,22 +4383,125 @@ function findInDocument(backwards) {
     }
   }
 
+  if (index !== -1) {
+    findCursor.index = backwards ? index : index + needle.length;
+  }
+  return index;
+}
+
+function findInDocument(backwards) {
+  const term = findInput.value;
+  if (!term || !currentDocument) {
+    return;
+  }
+
+  if (currentDocument.kind === "workbook") {
+    findInWorkbook(term, backwards);
+    return;
+  }
+
+  const textarea = viewer.querySelector(".markdown-editor");
+  if (textarea) {
+    findInTextarea(textarea, term, backwards);
+    return;
+  }
+
+  const root = wordEditor || viewer.querySelector(".markdown-document, .text-document");
+  if (!root) {
+    setStatus("No matches");
+    return;
+  }
+
+  const map = buildTextMap(root);
+  if (map.nodes.length === 0) {
+    setStatus("No matches");
+    return;
+  }
+
+  const index = nextMatchIndex(map.text.toLowerCase(), term.toLowerCase(), backwards);
   if (index === -1) {
     setStatus("No matches");
     return;
   }
 
-  selectEditorRange(rangeFromIndices(map, index, index + needle.length));
-  findCursor.index = backwards ? index : index + needle.length;
+  selectEditorRange(rangeFromIndices(map, index, index + term.length));
+}
+
+function findInTextarea(textarea, term, backwards) {
+  const index = nextMatchIndex(textarea.value.toLowerCase(), term.toLowerCase(), backwards);
+  if (index === -1) {
+    setStatus("No matches");
+    return;
+  }
+
+  textarea.setSelectionRange(index, index + term.length);
+  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
+  const line = textarea.value.slice(0, index).split("\n").length - 1;
+  textarea.scrollTop = Math.max(0, line * lineHeight - textarea.clientHeight / 2);
+}
+
+// ponytail: searches the raw model value, so formula cells match on their
+// "=..." text rather than the computed result.
+function findInWorkbook(term, backwards) {
+  syncWorkbookFromDom();
+  const sheet = currentDocument.sheets[selectedSheetIndex];
+  if (!sheet) {
+    return;
+  }
+
+  const needle = term.toLowerCase();
+  const matches = [];
+  sheet.rows.forEach((row, rowIndex) => {
+    row.forEach((value, columnIndex) => {
+      if (String(value ?? "").toLowerCase().includes(needle)) {
+        matches.push({ rowIndex, columnIndex });
+      }
+    });
+  });
+
+  if (matches.length === 0) {
+    setStatus("No matches");
+    return;
+  }
+
+  const position = (cell) => cell.rowIndex * 100000 + cell.columnIndex;
+  const current = selectedCell ? position(selectedCell) : -1;
+  let target;
+  if (backwards) {
+    target = [...matches].reverse().find((cell) => position(cell) < current) || matches[matches.length - 1];
+  } else {
+    target = matches.find((cell) => position(cell) > current) || matches[0];
+  }
+
+  selectWorkbookCell(target.rowIndex, target.columnIndex);
+  viewer
+    .querySelector(`td[data-row-index="${target.rowIndex}"][data-column-index="${target.columnIndex}"]`)
+    ?.scrollIntoView({ block: "center", inline: "nearest" });
+  setStatus(`${matches.indexOf(target) + 1} of ${matches.length} matches`);
 }
 
 function replaceCurrentMatch() {
-  if (!editMode || !wordEditor) {
+  if (!editMode || !currentDocument) {
     return;
   }
 
   const term = findInput.value;
   if (!term) {
+    return;
+  }
+
+  if (currentDocument.kind === "workbook") {
+    replaceInWorkbookCell(term);
+    return;
+  }
+
+  const textarea = viewer.querySelector(".markdown-editor");
+  if (textarea) {
+    replaceInTextarea(textarea, term);
+    return;
+  }
+
+  if (!wordEditor) {
     return;
   }
 
@@ -4370,6 +4530,109 @@ function replaceCurrentMatch() {
   }
 
   findInDocument(false);
+}
+
+function replaceInTextarea(textarea, term) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end);
+  if (selected.toLowerCase() === term.toLowerCase() && start !== end) {
+    textarea.value = textarea.value.slice(0, start) + replaceInput.value + textarea.value.slice(end);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    findCursor = { term: term.toLowerCase(), index: start + replaceInput.value.length };
+  }
+
+  findInDocument(false);
+}
+
+function replaceInWorkbookCell(term) {
+  const sheet = currentDocument.sheets[selectedSheetIndex];
+  const row = sheet && selectedCell ? sheet.rows[selectedCell.rowIndex] : null;
+  if (row) {
+    const value = String(row[selectedCell.columnIndex] ?? "");
+    const index = value.toLowerCase().indexOf(term.toLowerCase());
+    if (index !== -1) {
+      row[selectedCell.columnIndex] = value.slice(0, index) + replaceInput.value + value.slice(index + term.length);
+      setDirty(true);
+      renderWorkbook(currentDocument);
+    }
+  }
+
+  findInDocument(false);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replaceAllMatches() {
+  if (!editMode || !currentDocument) {
+    return;
+  }
+
+  const term = findInput.value;
+  if (!term) {
+    return;
+  }
+
+  const pattern = new RegExp(escapeRegExp(term), "gi");
+  const replacement = replaceInput.value;
+  let replaced = 0;
+
+  if (currentDocument.kind === "workbook") {
+    syncWorkbookFromDom();
+    const sheet = currentDocument.sheets[selectedSheetIndex];
+    if (!sheet) {
+      return;
+    }
+    sheet.rows.forEach((row) => {
+      row.forEach((value, columnIndex) => {
+        const text = String(value ?? "");
+        const matches = text.match(pattern);
+        if (matches) {
+          replaced += matches.length;
+          row[columnIndex] = text.replace(pattern, replacement);
+        }
+      });
+    });
+    if (replaced > 0) {
+      setDirty(true);
+      renderWorkbook(currentDocument);
+    }
+  } else if (viewer.querySelector(".markdown-editor")) {
+    const textarea = viewer.querySelector(".markdown-editor");
+    const matches = textarea.value.match(pattern);
+    if (matches) {
+      replaced = matches.length;
+      textarea.value = textarea.value.replace(pattern, replacement);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  } else if (wordEditor) {
+    const needle = term.toLowerCase();
+    // Rebuild the map after each replacement (DOM shifts); track a search
+    // offset so a replacement containing the term isn't re-matched.
+    let searchFrom = 0;
+    for (;;) {
+      const map = buildTextMap();
+      const index = map.text.toLowerCase().indexOf(needle, searchFrom);
+      if (index === -1) {
+        break;
+      }
+      const range = rangeFromIndices(map, index, index + needle.length);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(replacement));
+      searchFrom = index + replacement.length;
+      replaced += 1;
+    }
+    if (replaced > 0) {
+      captureWordSelection();
+      syncCurrentDocumentFromDom();
+      setDirty(true);
+    }
+  }
+
+  findCursor = { term: null, index: 0 };
+  setStatus(replaced > 0 ? `Replaced ${replaced} match${replaced === 1 ? "" : "es"}` : "No matches");
 }
 
 function askInline(label, defaultValue = "", options = {}) {
@@ -4408,7 +4671,7 @@ function clampInt(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(Number(value)) || min));
 }
 
-function runSheetAction(action) {
+async function runSheetAction(action) {
   if (!currentDocument || currentDocument.kind !== "workbook") {
     return;
   }
@@ -4451,6 +4714,20 @@ function runSheetAction(action) {
       setStatus("Select a column to sort");
       return;
     }
+    // Sorting moves rows but never rewrites cell refs (ranges like A1:A10 can't
+    // be rewritten soundly once rows interleave — Excel doesn't try either), so
+    // any formula with a ref will point at the wrong row afterwards. Warn first.
+    if (sheetHasCellRefFormulas(sheet)) {
+      const confirmed = await showConfirm({
+        title: "Sort with formulas?",
+        message: "This sheet contains formulas with cell references. Sorting moves rows without updating references, so those formulas may point at the wrong cells afterwards.",
+        tone: "warning",
+        primaryLabel: "Sort anyway"
+      });
+      if (!confirmed) {
+        return;
+      }
+    }
     sortSheetByColumn(sheet, columnIndex, action === "sort-asc" ? 1 : -1);
   }
 
@@ -4466,8 +4743,14 @@ function runSheetAction(action) {
   renderWorkbook(currentDocument);
 }
 
-// ponytail: sorts every row (no header detection) and leaves formula refs
-// pointing at their old positions; add header detection / ref rewriting if it bites.
+function sheetHasCellRefFormulas(sheet) {
+  return sheet.rows.some((row) =>
+    row.some((value) => typeof value === "string" && value.startsWith("=") && /[A-Z]+\d+/i.test(value))
+  );
+}
+
+// ponytail: sorts every row (no header detection); formula refs are guarded by
+// a confirm dialog in runSheetAction rather than rewritten (ranges can't be).
 function sortSheetByColumn(sheet, columnIndex, direction) {
   ensureSheetLayout(sheet);
   const zipped = sheet.rows.map((row, index) => ({ row, height: sheet.rowHeights[index] || 30 }));
@@ -4556,3 +4839,69 @@ function columnName(index) {
 
   return name;
 }
+
+// --- Crash recovery --------------------------------------------------------
+// Every 30s the dirty tabs are snapshotted to userData/autosave.json; a normal
+// quit deletes the file (main.js before-quit), so finding one on launch means
+// the last session crashed. Worst case loses 30s of typing.
+
+const AUTOSAVE_INTERVAL_MS = 30_000;
+let autosaveHadData = false;
+
+async function autosaveTick() {
+  snapshotActiveTab();
+  const dirtyTabs = tabs.filter((tab) => tab.isDirty);
+  if (dirtyTabs.length === 0) {
+    if (autosaveHadData) {
+      autosaveHadData = false;
+      window.documentOpener.clearAutosave();
+    }
+    return;
+  }
+
+  autosaveHadData = true;
+  await window.documentOpener.writeAutosave({
+    savedAt: new Date().toISOString(),
+    documents: dirtyTabs.map((tab) => ({ document: tab.document, editMode: tab.editMode }))
+  });
+}
+
+async function restoreAutosave() {
+  const data = await window.documentOpener.readAutosave();
+  const documents = Array.isArray(data?.documents) ? data.documents : [];
+  if (documents.length === 0) {
+    return;
+  }
+
+  const count = documents.length;
+  const confirmed = await showConfirm({
+    title: "Restore unsaved work?",
+    message: `DocOpen closed unexpectedly with ${count} unsaved document${count === 1 ? "" : "s"}. Restore ${count === 1 ? "it" : "them"}?`,
+    tone: "warning",
+    primaryLabel: "Restore",
+    cancelLabel: "Discard"
+  });
+  if (!confirmed) {
+    window.documentOpener.clearAutosave();
+    return;
+  }
+
+  for (const entry of documents) {
+    if (!entry?.document?.kind) {
+      continue;
+    }
+    snapshotActiveTab();
+    const tab = createDocumentTab(entry.document);
+    // ponytail: lastSavedSnapshot is the restored (dirty) state, so Revert
+    // returns here rather than to the on-disk file after a restore.
+    tab.isDirty = true;
+    tab.editMode = Boolean(entry.editMode) && isEditableDocument(entry.document);
+    tabs.push(tab);
+    activeTabIndex = tabs.length - 1;
+  }
+  presentActiveTab();
+  setStatus("Restored unsaved work");
+}
+
+setInterval(autosaveTick, AUTOSAVE_INTERVAL_MS);
+restoreAutosave();

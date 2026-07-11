@@ -1861,6 +1861,23 @@ body[data-document-kind="pdf"] .viewer {
   pointer-events: none;
 }
 
+.paint-resize-grip {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  border: 1px solid #1d4ed8;
+  background: #3b82f6;
+  border-radius: 2px;
+  cursor: nwse-resize;
+}
+
+.paint-resize-ghost {
+  position: absolute;
+  border: 1px dashed #3b82f6;
+  pointer-events: none;
+}
+
 .paint-text-editor {
   position: absolute;
   min-width: 24px;

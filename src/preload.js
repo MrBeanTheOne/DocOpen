@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld("documentOpener", {
     return () => ipcRenderer.removeListener("document:openedFromSystem", listener);
   },
   notifyDirty: (isDirty) => ipcRenderer.send("document:dirty", isDirty),
+  writeAutosave: (data) => ipcRenderer.invoke("autosave:write", data),
+  readAutosave: () => ipcRenderer.invoke("autosave:read"),
+  clearAutosave: () => ipcRenderer.invoke("autosave:clear"),
   onRequestClose: (callback) => {
     const listener = () => callback();
     ipcRenderer.on("document:requestClose", listener);

@@ -33,6 +33,11 @@ const TEST = `(async () => {
     };
   };
 
+  // A leftover crash-recovery file (e.g. from real app use) would pop a restore
+  // dialog and desync the dialog clicks below — clear it before starting.
+  await window.documentOpener.clearAutosave();
+  if (activeDialog) resolveAppDialog("cancel");
+
   await createNewDocument("workbook");
 
   // 1. Clean click-type flow ending with a formula.
@@ -230,6 +235,131 @@ const TEST = `(async () => {
   infoToggle.click();
   check(document.querySelector("#documentInfoPanel").classList.contains("is-collapsed"), "clicking the title should collapse Document info");
   infoToggle.click();
+
+  // 11. Find & Replace across word, textarea, and workbook documents.
+  await createNewDocument("word");
+  wordEditor.innerHTML = "<p>foo bar foo</p>";
+  findInput.value = "bar";
+  findInDocument(false);
+  check(getSelection().toString() === "bar", "word find should select the match, got " + JSON.stringify(getSelection().toString()));
+  findInput.value = "foo";
+  replaceInput.value = "baz";
+  replaceAllMatches();
+  check(/baz bar baz/.test(wordEditor.innerText), "word replace-all should replace both matches, got " + JSON.stringify(wordEditor.innerText));
+
+  await createNewDocument("text");
+  const findTextarea = document.querySelector(".markdown-editor");
+  findTextarea.value = "alpha beta alpha";
+  findTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+  findInput.value = "beta";
+  findInDocument(false);
+  check(findTextarea.selectionStart === 6 && findTextarea.selectionEnd === 10, "textarea find should select the match range, got " + findTextarea.selectionStart + "-" + findTextarea.selectionEnd);
+  findInput.value = "alpha";
+  replaceInput.value = "gamma";
+  replaceAllMatches();
+  check(findTextarea.value === "gamma beta gamma", "textarea replace-all should replace both matches, got " + JSON.stringify(findTextarea.value));
+
+  activateTab(0); // back to the workbook
+  findInput.value = "20";
+  findInDocument(false);
+  check(selectedCell && selectedCell.rowIndex === 3 && selectedCell.columnIndex === 0, "workbook find should select the matching cell, got " + JSON.stringify(selectedCell));
+  replaceInput.value = "99";
+  replaceCurrentMatch();
+  check(currentDocument.sheets[0].rows[3][0] === "99", "workbook replace should rewrite the cell, got " + JSON.stringify(currentDocument.sheets[0].rows[3][0]));
+  const ctrlF = new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true, cancelable: true });
+  document.dispatchEvent(ctrlF);
+  check(!document.querySelector("#findBar").hidden, "Ctrl+F should open the find bar on a workbook");
+  document.querySelector("#findCloseButton").click();
+
+  // 12. Sorting a sheet with formula refs asks for confirmation first.
+  check(sheetHasCellRefFormulas({ rows: [["=A1+B1"]] }), "ref formulas should be detected");
+  check(!sheetHasCellRefFormulas({ rows: [["=1+1", "plain"]] }), "formulas without refs should not trip the guard");
+  click(0, 0);
+  const rowsBeforeSort = JSON.stringify(currentDocument.sheets[0].rows);
+  const sortPromise = runSheetAction("sort-asc");
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  check(Boolean(activeDialog), "sorting a sheet with formulas should open the confirm dialog");
+  document.querySelector("#dialogCancelButton").click();
+  await sortPromise;
+  check(JSON.stringify(currentDocument.sheets[0].rows) === rowsBeforeSort, "cancelling the sort confirm should leave rows untouched");
+
+  // 13. Crash-recovery autosave: restore flow, periodic write, cleanup.
+  const tabCountBeforeRestore = tabs.length;
+  await window.documentOpener.writeAutosave({
+    savedAt: "test",
+    documents: [{ document: { kind: "text", fileName: "restored.txt", extension: ".txt", text: "restored text" }, editMode: true }]
+  });
+  const restorePromise = restoreAutosave();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  document.querySelector("#dialogPrimaryButton").click();
+  await restorePromise;
+  check(tabs.length === tabCountBeforeRestore + 1, "restore should add a tab for the recovered document");
+  check(currentDocument.text === "restored text", "restore should present the recovered content");
+  check(isDirty, "a restored document should be dirty");
+  await autosaveTick();
+  const autosaved = await window.documentOpener.readAutosave();
+  check(Array.isArray(autosaved?.documents) && autosaved.documents.length > 0, "autosaveTick should write the dirty tabs");
+  await window.documentOpener.clearAutosave();
+  check((await window.documentOpener.readAutosave()) === null, "clearAutosave should remove the snapshot");
+
+  // 14. Paint: corner resize grip, text font picker, fill tolerance.
+  await createNewDocument("image", { width: 100, height: 80 });
+  await new Promise((resolve) => setTimeout(resolve, 50)); // let the canvas get layout
+  const paint2 = document.querySelector(".paint-canvas");
+  const grip = document.querySelector(".paint-resize-grip");
+  check(Boolean(grip), "paint canvas should have a resize grip");
+  if (grip) {
+    const gripRect = grip.getBoundingClientRect();
+    const gripScale = paint2.clientWidth / paint2.width || 1;
+    const startWidth = paint2.width;
+    const startHeight = paint2.height;
+    const gripPointer = (type, dx, dy) =>
+      grip.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, clientX: gripRect.left + 6 + dx, clientY: gripRect.top + 6 + dy }));
+    gripPointer("pointerdown", 0, 0);
+    gripPointer("pointermove", 20 * gripScale, 10 * gripScale);
+    gripPointer("pointerup", 20 * gripScale, 10 * gripScale);
+    check(
+      Math.abs(paint2.width - (startWidth + 20)) <= 2 && Math.abs(paint2.height - (startHeight + 10)) <= 2,
+      "grip drag should resize the canvas by the drag delta, got " + paint2.width + "x" + paint2.height + " from " + startWidth + "x" + startHeight
+    );
+    check(currentDocument.width === paint2.width, "grip resize should sync the document size");
+    undoPaint();
+    check(paint2.width === startWidth && paint2.height === startHeight, "undo should restore the pre-grip-resize size");
+  }
+
+  const paint2Ctx = paint2.getContext("2d");
+  document.querySelector("#paintFontSelect").value = "Georgia";
+  document.querySelector('[data-image-tool="text"]').click();
+  const paintAt2 = (x, y) => {
+    const rect = paint2.getBoundingClientRect();
+    return { clientX: rect.left + (x / paint2.width) * rect.width, clientY: rect.top + (y / paint2.height) * rect.height };
+  };
+  paint2.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, ...paintAt2(10, 10) }));
+  const fontBox = document.querySelector(".paint-text-editor");
+  check(fontBox && fontBox.style.font.includes("Georgia"), "text box should use the picked font, got " + JSON.stringify(fontBox?.style.font));
+  fontBox?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  document.querySelector("#paintFontSelect").value = "Arial";
+
+  // Tolerance: a #f8f8f8 patch on white differs by 7/channel — an exact fill
+  // stays inside the patch, a 96 fill bleeds into the white background.
+  paint2Ctx.fillStyle = "#ffffff";
+  paint2Ctx.fillRect(0, 0, paint2.width, paint2.height);
+  paint2Ctx.fillStyle = "#f8f8f8";
+  paint2Ctx.fillRect(0, 0, 20, 20);
+  document.querySelector("#imageColorInput").value = "#ff0000";
+  document.querySelector("#fillToleranceSelect").value = "0";
+  document.querySelector('[data-image-tool="fill"]').click();
+  paint2.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, ...paintAt2(10, 10) }));
+  check(paint2Ctx.getImageData(10, 10, 1, 1).data[0] === 255 && paint2Ctx.getImageData(10, 10, 1, 1).data[1] === 0, "exact fill should recolor the patch");
+  check(paint2Ctx.getImageData(40, 40, 1, 1).data[1] === 255, "exact fill should not bleed into the near-white background");
+  undoPaint();
+  document.querySelector("#fillToleranceSelect").value = "96";
+  paint2.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, ...paintAt2(10, 10) }));
+  check(paint2Ctx.getImageData(40, 40, 1, 1).data[1] === 0, "tolerant fill should bleed across the 7-value difference");
+  document.querySelector("#fillToleranceSelect").value = "32";
+
+  // Leave no crash-recovery bait behind: app.exit() skips before-quit cleanup.
+  await window.documentOpener.clearAutosave();
 
   return JSON.stringify(out, null, 2);
 })()`;

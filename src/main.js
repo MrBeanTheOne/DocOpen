@@ -170,6 +170,40 @@ ipcMain.handle("document:saveAs", async (_event, payload) => {
   return saveDocument(saveValidation.payload);
 });
 
+// Crash-recovery snapshot: renderer writes dirty tabs periodically, reads it
+// back on launch, and a normal quit wipes it — so it only survives a crash.
+function autosaveFilePath() {
+  return path.join(app.getPath("userData"), "autosave.json");
+}
+
+ipcMain.handle("autosave:write", async (_event, data) => {
+  try {
+    await fs.writeFile(autosaveFilePath(), JSON.stringify(data));
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("autosave:read", async () => {
+  try {
+    return JSON.parse(await fs.readFile(autosaveFilePath(), "utf8"));
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle("autosave:clear", async () => {
+  await fs.unlink(autosaveFilePath()).catch(() => {});
+  return { ok: true };
+});
+
+app.on("before-quit", () => {
+  try {
+    require("node:fs").unlinkSync(autosaveFilePath());
+  } catch {}
+});
+
 ipcMain.handle("clipboard:writeImage", (_event, dataUrl) => {
   if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
     return { ok: false };
