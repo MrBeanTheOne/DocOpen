@@ -1,0 +1,88 @@
+{
+  "name": "docopen",
+  "version": "0.6.1",
+  "description": "A dead simple dark-mode Electron app for opening Word, Excel, and PDF documents.",
+  "author": "Retile",
+  "main": "src/main.js",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "node scripts/smoke-open.js",
+    "ui-check": "electron scripts/ui-check.js",
+    "build": "electron-builder --win nsis",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "local.document-opener",
+    "productName": "DocOpen",
+    "win": {
+      "icon": "src/assets/icon.ico",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DocOpen"
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "docx",
+          "xlsx",
+          "csv",
+          "txt",
+          "log",
+          "json"
+        ],
+        "name": "Editable document",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF document",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "png",
+          "jpg",
+          "jpeg"
+        ],
+        "name": "Image",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "gif",
+          "webp",
+          "bmp",
+          "svg"
+        ],
+        "name": "Image",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "md"
+        ],
+        "name": "Markdown document",
+        "role": "Editor"
+      }
+    ]
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.8.0"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}

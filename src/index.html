@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DocOpen</title>
+    <link rel="icon" href="./assets/favicon-32.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" id="appShell">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <div class="brand">
+            <img class="brand-mark" src="./assets/logo.png" alt="DocOpen logo" width="30" height="30" />
+            <div class="brand-copy">
+              <h1>DocOpen</h1>
+              <p>Word, Excel, and PDF</p>
+            </div>
+          </div>
+          <button class="icon-button" id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
+            <span id="sidebarToggleGlyph">&lt;</span>
+          </button>
+        </div>
+
+        <div class="sidebar-body">
+          <div class="sidebar-actions">
+            <button class="action-button is-primary" id="openButton" type="button">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M8 2.5v7.5" />
+                <path d="M4.8 6.8 8 10l3.2-3.2" />
+                <path d="M3 13h10" />
+              </svg>
+              <span>Open</span>
+            </button>
+
+            <div class="new-document">
+              <button class="action-button" id="newButton" type="button" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 3v10" />
+                  <path d="M3 8h10" />
+                </svg>
+                <span>New</span>
+              </button>
+              <div class="new-menu" id="newMenu" role="menu" hidden>
+                <button class="new-menu-item" id="newWordButton" type="button" role="menuitem">
+                  <span class="recent-file-icon kind-word">DOC</span>
+                  <span>Word document</span>
+                </button>
+                <button class="new-menu-item" id="newWorkbookButton" type="button" role="menuitem">
+                  <span class="recent-file-icon kind-workbook">XLS</span>
+                  <span>Excel workbook</span>
+                </button>
+                <button class="new-menu-item" id="newCsvButton" type="button" role="menuitem">
+                  <span class="recent-file-icon kind-csv">CSV</span>
+                  <span>CSV file</span>
+                </button>
+                <button class="new-menu-item" id="newMarkdownButton" type="button" role="menuitem">
+                  <span class="recent-file-icon kind-markdown">MD</span>
+                  <span>Markdown file</span>
+                </button>
+                <button class="new-menu-item" id="newTextButton" type="button" role="menuitem">
+                  <span class="recent-file-icon kind-text">TXT</span>
+                  <span>Text file</span>
+                </button>
+                <button class="new-menu-item" id="newImageButton" type="button" role="menuitem">
+                  <span class="recent-file-icon kind-image">IMG</span>
+                  <span>Image</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <section class="file-panel" id="currentFilePanel" aria-live="polite" hidden>
+            <span class="panel-label">Current file</span>
+            <div class="file-card-main">
+              <span class="file-kind-icon kind-empty" id="fileKindIcon">-</span>
+              <div class="file-card-copy">
+                <strong id="fileName">Nothing open</strong>
+                <p id="fileMeta">No document selected.</p>
+              </div>
+            </div>
+            <div class="document-notices" id="documentNotices" hidden></div>
+          </section>
+
+          <section class="document-info-panel" id="documentInfoPanel" hidden>
+            <span class="panel-label panel-toggle" role="button" tabindex="0">Document info</span>
+            <dl class="info-grid" id="documentInfoGrid"></dl>
+          </section>
+
+          <section class="backup-panel" id="backupPanel" hidden>
+            <div class="panel-heading">
+              <span class="panel-label">Backup Center</span>
+              <button class="mini-button" id="clearBackupsButton" type="button" hidden>Clear</button>
+            </div>
+            <div class="backup-list" id="backupList"></div>
+          </section>
+
+          <section class="recent-panel" id="recentPanel">
+            <div class="panel-heading">
+              <span class="panel-label panel-toggle" role="button" tabindex="0">Recently opened</span>
+              <button class="mini-button" id="clearRecentButton" type="button" hidden>Clear</button>
+            </div>
+            <div class="recent-list" id="recentList"></div>
+          </section>
+
+          <section class="sheet-panel" id="sheetPanel" hidden>
+            <span class="panel-label">Sheets</span>
+            <div class="sheet-list" id="sheetList"></div>
+          </section>
+        </div>
+
+        <button class="sidebar-rail" id="sidebarRail" type="button" aria-label="Expand sidebar">
+          <span>Documents</span>
+        </button>
+      </aside>
+
+      <section class="workspace" id="dropZone">
+        <div class="tab-strip" id="tabStrip" role="tablist" aria-label="Open documents" hidden></div>
+        <div class="topbar">
+          <div class="document-head">
+            <span class="document-kind kind-empty" id="documentKind" hidden>No file</span>
+            <div class="document-copy">
+              <span class="eyebrow" id="modeLabel">Read-only preview</span>
+              <h2 id="documentTitle">No document selected</h2>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <div class="width-seg layout-seg" id="layoutSeg" role="group" aria-label="Page layout" hidden>
+              <button class="width-opt" type="button" data-layout="narrow" title="Narrow content" aria-label="Narrow content" aria-pressed="true">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="5.5" y="3" width="5" height="10" rx="1" />
+                </svg>
+              </button>
+              <button class="width-opt" type="button" data-layout="wide" title="Wide content" aria-label="Wide content" aria-pressed="false">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="10" height="10" rx="1" />
+                </svg>
+              </button>
+              <button class="width-opt" type="button" data-layout="full" title="Full width" aria-label="Full width" aria-pressed="false">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="1.5" y="3" width="13" height="10" rx="1" />
+                </svg>
+              </button>
+            </div>
+            <button class="mode-button" id="editButton" type="button" disabled hidden aria-pressed="false">
+              <svg class="ui-icon edit-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11.1 2.9a1.7 1.7 0 0 1 2.4 2.4L5.6 13.2l-3.1.7.7-3.1z" />
+              </svg>
+              <svg class="ui-icon done-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3.2 8.2 6.4 11.4 12.8 4.8" />
+              </svg>
+              <span id="editButtonLabel">Edit</span>
+            </button>
+            <button class="ghost-button" id="saveButton" type="button" disabled hidden>
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 2.5h6.8L13 4.7v8.8H3v-11z" />
+                <path d="M5.2 2.5v3.3h5.2" />
+                <path d="M5.2 13.5V9.3h5.6v4.2" />
+              </svg>
+              <span id="saveButtonLabel">Save</span>
+            </button>
+            <button class="ghost-button" id="saveAsButton" type="button" disabled hidden>
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M8 2.5v7.5" />
+                <path d="M4.8 6.8 8 10l3.2-3.2" />
+                <path d="M3 13h10" />
+              </svg>
+              <span>Save as</span>
+            </button>
+            <button class="ghost-button" id="revertButton" type="button" disabled hidden>
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4.2 5.8A4.8 4.8 0 1 1 3.6 10" />
+                <path d="M2.5 3.4v3.2h3.2" />
+              </svg>
+              <span>Revert</span>
+            </button>
+            <div class="status-stack">
+              <span class="status" id="dirtyStatus" hidden>Unsaved</span>
+              <span class="status" id="statusText">Ready</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-toolbar" id="editToolbar" hidden>
+          <div class="toolbar-group word-tools" data-toolset="word">
+            <select class="toolbar-select font-family-select" id="fontFamilySelect" aria-label="Font family" title="Font family">
+              <option value="Arial">Arial</option>
+              <option value="Calibri">Calibri</option>
+              <option value="Cambria">Cambria</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Verdana">Verdana</option>
+            </select>
+            <select class="toolbar-select font-size-select" id="fontSizeSelect" aria-label="Font size" title="Font size">
+              <option value="2">10</option>
+              <option value="3" selected>12</option>
+              <option value="4">14</option>
+              <option value="5">18</option>
+              <option value="6">24</option>
+              <option value="7">36</option>
+            </select>
+            <button type="button" class="tool-button" data-command="bold" aria-label="Bold" title="Bold">B</button>
+            <button type="button" class="tool-button" data-command="italic" aria-label="Italic" title="Italic">I</button>
+            <button type="button" class="tool-button" data-command="underline" aria-label="Underline" title="Underline">U</button>
+            <button type="button" class="tool-button" data-command="strikeThrough" aria-label="Strikethrough" title="Strikethrough">S</button>
+            <input class="color-control" id="fontColorInput" type="color" value="#eef0f4" aria-label="Font color" title="Font color" />
+            <input class="color-control" id="highlightColorInput" type="color" value="#3b2f10" aria-label="Highlight color" title="Highlight color" />
+            <button type="button" class="tool-button" data-command="justifyLeft" aria-label="Align left" title="Align left">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 4h10" />
+                <path d="M3 7h7" />
+                <path d="M3 10h10" />
+                <path d="M3 13h6" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-command="justifyCenter" aria-label="Align center" title="Align center">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 4h10" />
+                <path d="M5 7h6" />
+                <path d="M3 10h10" />
+                <path d="M5.5 13h5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-command="justifyRight" aria-label="Align right" title="Align right">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 4h10" />
+                <path d="M6 7h7" />
+                <path d="M3 10h10" />
+                <path d="M7 13h6" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-block="h1" aria-label="Heading 1" title="Heading 1">H1</button>
+            <button type="button" class="tool-button" data-block="h2" aria-label="Heading 2" title="Heading 2">H2</button>
+            <button type="button" class="tool-button" data-command="insertUnorderedList" aria-label="Bulleted list" title="Bulleted list">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 4.2h7" />
+                <path d="M6 8h7" />
+                <path d="M6 11.8h7" />
+                <path d="M3 4.2h.01M3 8h.01M3 11.8h.01" stroke-width="2.2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-command="insertOrderedList" aria-label="Numbered list" title="Numbered list">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7 4.2h6" />
+                <path d="M7 8h6" />
+                <path d="M7 11.8h6" />
+                <path d="M3.2 3.4h1v2.1" />
+                <path d="M3.1 7.2c.1-.5.5-.8 1-.8.6 0 1 .4 1 1 0 .3-.2.6-.5.9l-1.5 1.2h2" />
+                <path d="M3.1 10.6h1.1c.5 0 .9.3.9.8s-.4.8-.9.8H3.1" />
+                <path d="M4.2 12.2c.6 0 1 .3 1 .8s-.4.8-1 .8H3" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-command="removeFormat" aria-label="Clear formatting" title="Clear formatting">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 3h7" />
+                <path d="M8.5 3 5.8 10.5" />
+                <path d="M3.5 13h9" />
+                <path d="M3.5 7.5 6 10" />
+                <path d="M6 7.5 3.5 10" />
+              </svg>
+            </button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="tool-button" data-command="undo" aria-label="Undo" title="Undo (Ctrl+Z)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 5H10.5a3 3 0 0 1 0 6H7" />
+                <path d="M6 2.8 3.4 5 6 7.2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-command="redo" aria-label="Redo" title="Redo (Ctrl+Y)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 5H5.5a3 3 0 0 0 0 6H9" />
+                <path d="M10 2.8 12.6 5 10 7.2" />
+              </svg>
+            </button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="tool-button" data-word-action="link" aria-label="Insert link" title="Insert link">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6.5 9.5 9.5 6.5" />
+                <path d="M7.2 4.8 8.6 3.4a2.6 2.6 0 0 1 3.7 3.7L10.9 8.5" />
+                <path d="M8.8 11.2 7.4 12.6a2.6 2.6 0 0 1-3.7-3.7L5.1 7.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-word-action="unlink" aria-label="Remove link" title="Remove link">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7.2 4.8 8.6 3.4a2.6 2.6 0 0 1 3.7 3.7L10.9 8.5" />
+                <path d="M8.8 11.2 7.4 12.6a2.6 2.6 0 0 1-3.7-3.7L5.1 7.5" />
+                <path d="M2.5 2.5 13.5 13.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-word-action="image" aria-label="Insert image" title="Insert image">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <circle cx="6" cy="6.4" r="1.1" />
+                <path d="M3 11.5 6.5 8.5 9 10.5 11 9l2.5 2.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-word-action="table" aria-label="Insert table" title="Insert table">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M2.5 6.5h11" />
+                <path d="M2.5 9.8h11" />
+                <path d="M6.5 3v10" />
+                <path d="M9.9 3v10" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-word-action="find" aria-label="Find and replace" title="Find and replace (Ctrl+F)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="7" cy="7" r="3.6" />
+                <path d="M9.8 9.8 13 13" />
+              </svg>
+            </button>
+            <span class="table-context-tools" id="tableTools" hidden>
+              <span class="toolbar-divider" aria-hidden="true"></span>
+              <span class="context-label">Table</span>
+              <button type="button" class="tool-button" data-word-action="row-add" aria-label="Add table row" title="Add row below">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                  <path d="M2.5 7.2h11" />
+                  <path d="M2.5 10.6h11" />
+                  <path d="M8 5.1v4.2" />
+                  <path d="M5.9 7.2h4.2" />
+                </svg>
+              </button>
+              <button type="button" class="tool-button" data-word-action="row-del" aria-label="Delete table row" title="Delete row">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                  <path d="M2.5 7.2h11" />
+                  <path d="M2.5 10.6h11" />
+                  <path d="M5.8 7.2h4.4" />
+                </svg>
+              </button>
+              <button type="button" class="tool-button" data-word-action="col-add" aria-label="Add table column" title="Add column right">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                  <path d="M6.1 3v10" />
+                  <path d="M9.9 3v10" />
+                  <path d="M8 5.3v4.2" />
+                  <path d="M5.9 7.4h4.2" />
+                </svg>
+              </button>
+              <button type="button" class="tool-button" data-word-action="col-del" aria-label="Delete table column" title="Delete column">
+                <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                  <path d="M6.1 3v10" />
+                  <path d="M9.9 3v10" />
+                  <path d="M5.8 7.4h4.4" />
+                </svg>
+              </button>
+            </span>
+          </div>
+
+          <div class="toolbar-group sheet-tools" data-toolset="workbook">
+            <button type="button" class="tool-button" data-sheet-action="add-row" aria-label="Add row" title="Add row">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M2.5 7.2h11" />
+                <path d="M2.5 10.6h11" />
+                <path d="M8 5.1v4.2" />
+                <path d="M5.9 7.2h4.2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-sheet-action="delete-row" aria-label="Delete row" title="Delete row">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M2.5 7.2h11" />
+                <path d="M2.5 10.6h11" />
+                <path d="M5.8 7.2h4.4" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-sheet-action="add-column" aria-label="Add column" title="Add column">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M6.1 3v10" />
+                <path d="M9.9 3v10" />
+                <path d="M8 5.3v4.2" />
+                <path d="M5.9 7.4h4.2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-sheet-action="delete-column" aria-label="Delete column" title="Delete column">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M6.1 3v10" />
+                <path d="M9.9 3v10" />
+                <path d="M5.8 7.4h4.4" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-sheet-action="sort-asc" aria-label="Sort column ascending" title="Sort column ascending">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 4.5h4" />
+                <path d="M3 8h6" />
+                <path d="M3 11.5h8" />
+                <path d="M13 4v8" />
+                <path d="M11 10l2 2 2-2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-sheet-action="sort-desc" aria-label="Sort column descending" title="Sort column descending">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 4.5h8" />
+                <path d="M3 8h6" />
+                <path d="M3 11.5h4" />
+                <path d="M13 4v8" />
+                <path d="M11 10l2 2 2-2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-sheet-action="clear-cell" aria-label="Clear cell" title="Clear cell">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M5.2 5.8 10.8 11.4" />
+                <path d="M10.8 5.8 5.2 11.4" />
+              </svg>
+            </button>
+            <span class="selection-label" id="selectionLabel">No cell</span>
+          </div>
+
+          <div class="toolbar-group paint-tools" data-toolset="image">
+            <button type="button" class="tool-button" data-image-tool="select" aria-label="Select" title="Select (drag a rectangle)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="10" height="8" rx="0.5" stroke-dasharray="2.4 1.8" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="cut-selection" aria-label="Cut selection" title="Cut selection (Delete)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="4.2" cy="11.6" r="1.7" />
+                <circle cx="11.8" cy="11.6" r="1.7" />
+                <path d="M5.6 10.4 12.4 2.8" />
+                <path d="M10.4 10.4 3.6 2.8" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="crop-selection" aria-label="Crop to selection" title="Crop to selection">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4.5 1.5v10h10" />
+                <path d="M1.5 4.5h10v10" />
+              </svg>
+            </button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="tool-button is-active" data-image-tool="brush" aria-label="Brush" title="Brush">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11.2 2.8a1.6 1.6 0 0 1 2.3 2.3L7.6 11 4.6 11.7 5.3 8.7z" />
+                <path d="M3.2 13.2c.9 0 1.6-.3 2-1" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-tool="eraser" aria-label="Eraser" title="Eraser">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6.2 12.8 2.8 9.4a1.4 1.4 0 0 1 0-2L7.6 2.6a1.4 1.4 0 0 1 2 0l3.8 3.8a1.4 1.4 0 0 1 0 2l-4.4 4.4z" />
+                <path d="M5 6.4 9.6 11" />
+                <path d="M6.2 12.8H13" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-tool="picker" aria-label="Pick color" title="Pick color from image">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10.2 2.6a1.8 1.8 0 0 1 2.6 2.6l-1.1 1.1-2.6-2.6z" />
+                <path d="M9.1 3.7 3.4 9.4 2.8 12.6 6 12 11.7 6.3" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-tool="text" aria-label="Text" title="Text">A</button>
+            <button type="button" class="tool-button" data-image-tool="line" aria-label="Line" title="Line">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 13 13 3" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-tool="rect" aria-label="Rectangle" title="Rectangle">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="10" height="8" rx="0.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-tool="ellipse" aria-label="Ellipse" title="Ellipse">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <ellipse cx="8" cy="8" rx="5.5" ry="4.2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-tool="fill" aria-label="Fill" title="Fill">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7.5 2.5 12.7 7.7a1 1 0 0 1 0 1.4l-3.6 3.6a1 1 0 0 1-1.4 0L4.1 9.1a1 1 0 0 1 0-1.4z" />
+                <path d="M4.4 8.4h7.4" />
+                <path d="M13.6 10.6c.6.9.9 1.6.9 2.1a.9.9 0 0 1-1.8 0c0-.5.3-1.2.9-2.1z" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="fill-shape" aria-label="Filled shapes" title="Filled shapes (rect/ellipse)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3.5" y="4.5" width="9" height="7" rx="0.5" />
+              </svg>
+            </button>
+            <input class="color-control" id="imageColorInput" type="color" value="#3b82f6" aria-label="Brush color" title="Brush color" />
+            <select class="toolbar-select" id="imageSizeSelect" aria-label="Brush size" title="Brush size">
+              <option value="2">2 px</option>
+              <option value="4" selected>4 px</option>
+              <option value="8">8 px</option>
+              <option value="16">16 px</option>
+              <option value="32">32 px</option>
+            </select>
+            <button type="button" class="tool-button" data-image-action="undo" aria-label="Undo paint" title="Undo (Ctrl+Z)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 5H10.5a3 3 0 0 1 0 6H7" />
+                <path d="M6 2.8 3.4 5 6 7.2" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="redo" aria-label="Redo paint" title="Redo (Ctrl+Y)">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 5H5.5a3 3 0 0 0 0 6H9" />
+                <path d="M10 2.8 12.6 5 10 7.2" />
+              </svg>
+            </button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button type="button" class="tool-button" data-image-action="flip-h" aria-label="Flip horizontal" title="Flip horizontal">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M8 2v12" stroke-dasharray="2 2" />
+                <path d="M6 5 2.8 8 6 11z" />
+                <path d="M10 5 13.2 8 10 11z" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="flip-v" aria-label="Flip vertical" title="Flip vertical">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 8h12" stroke-dasharray="2 2" />
+                <path d="M5 6 8 2.8 11 6z" />
+                <path d="M5 10 8 13.2 11 10z" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="rotate" aria-label="Rotate 90 degrees" title="Rotate 90&#176;">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12.8 8A4.8 4.8 0 1 1 8 3.2" />
+                <path d="M8 0.9v2.3H5.7" transform="rotate(45 8 3.2)" />
+                <rect x="6.2" y="6.2" width="3.6" height="3.6" rx="0.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="resize" aria-label="Resize canvas" title="Resize canvas">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+                <path d="M9.5 13.5v-4h4" />
+                <path d="M11.2 11.2 13.5 13.5" />
+              </svg>
+            </button>
+            <button type="button" class="tool-button" data-image-action="clear" aria-label="Clear image" title="Clear image">
+              <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M5.2 5.8 10.8 11.4" />
+                <path d="M10.8 5.8 5.2 11.4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="find-bar" id="findBar" hidden>
+          <input class="find-input" id="findInput" type="text" placeholder="Find" aria-label="Find" />
+          <input class="find-input" id="replaceInput" type="text" placeholder="Replace with" aria-label="Replace with" />
+          <button class="find-button" id="replaceButton" type="button">Replace</button>
+          <button class="find-button find-close" id="findCloseButton" type="button" aria-label="Close find">&times;</button>
+        </div>
+
+        <div class="find-bar" id="promptBar" hidden>
+          <span class="prompt-label" id="promptLabel"></span>
+          <input class="find-input" id="promptInput" type="text" aria-label="Value" />
+          <button class="find-button" id="promptOkButton" type="button">OK</button>
+          <button class="find-button find-close" id="promptCancelButton" type="button" aria-label="Cancel">&times;</button>
+        </div>
+
+        <input type="file" id="imageInput" accept="image/*" hidden />
+
+        <div class="viewer" id="viewer">
+          <div class="empty-state">
+            <div class="empty-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 3h8l4 4v14H6z" />
+                <path d="M14 3v5h5" />
+                <path d="M9 13h6" />
+                <path d="M9 16h4" />
+              </svg>
+            </div>
+            <h3>No document open</h3>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="dialog-overlay" id="dialogOverlay" hidden>
+      <section class="app-dialog" id="appDialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
+        <div class="dialog-head">
+          <span class="dialog-icon" id="dialogIcon" aria-hidden="true"></span>
+          <div class="dialog-copy">
+            <h3 id="dialogTitle"></h3>
+            <p id="dialogMessage"></p>
+          </div>
+        </div>
+        <input class="dialog-input" id="dialogInput" type="text" hidden />
+        <div class="dialog-actions">
+          <button class="ghost-button" id="dialogSecondaryButton" type="button" hidden></button>
+          <button class="ghost-button" id="dialogCancelButton" type="button" hidden></button>
+          <button class="primary-button" id="dialogPrimaryButton" type="button"></button>
+        </div>
+      </section>
+    </div>
+
+    <script src="./formula.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
