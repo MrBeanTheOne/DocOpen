@@ -16,10 +16,15 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # Pre-create the draft so electron-builder's parallel uploads all find
+      # and reuse it (otherwise they race and create duplicate releases)
+      - run: gh release create ${{ github.ref_name }} --draft --title ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx electron-builder --win nsis --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # electron-builder uploads to a draft; publish it once all assets are up
+      # Publish the draft once all assets are up
       - run: gh release edit ${{ github.ref_name }} --draft=false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
