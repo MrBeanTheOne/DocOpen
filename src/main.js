@@ -1,14 +1,20 @@
 const path = require("node:path");
 const fs = require("node:fs/promises");
-const { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, clipboard, dialog, globalShortcut, ipcMain, nativeImage, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const { openDocument, SUPPORTED_EXTENSIONS } = require("./documentReader");
 const { saveDocument } = require("./documentWriter");
+const { captureScreenshot } = require("./screenshot");
 
 let mainWindow;
 let pendingFilePath = findSupportedFileArg(process.argv);
 let documentDirty = false;
 let allowClose = false;
+let tray = null;
+let screenshotDelayMs = 0;
+let screenshotBusy = false;
+let trayRecentFiles = [];
+let quitRequested = false;
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -18,18 +24,18 @@ if (!gotSingleInstanceLock) {
 
 app.on("second-instance", (_event, argv) => {
   const filePath = findSupportedFileArg(argv);
-  if (!filePath) {
-    return;
-  }
-
   if (mainWindow) {
     if (mainWindow.isMinimized()) {
       mainWindow.restore();
     }
     mainWindow.focus();
-    openPathInWindow(filePath);
+    if (filePath) {
+      openPathInWindow(filePath);
+    }
   } else {
-    pendingFilePath = filePath;
+    // App is tray-only; relaunching (with or without a file) reopens the window.
+    pendingFilePath = filePath || pendingFilePath;
+    createWindow();
   }
 });
 
@@ -70,10 +76,27 @@ function createWindow() {
       pendingFilePath = null;
     }
   });
+
+  mainWindow.on("closed", () => {
+    // Destroy-on-close: the renderer's ~350MB is freed; the app stays alive in
+    // the tray (main process only) and the window is recreated on demand.
+    mainWindow = null;
+    documentDirty = false;
+    allowClose = false;
+    // A graceful close is not a crash — don't offer recovery on next open.
+    fs.unlink(autosaveFilePath()).catch(() => {});
+    if (quitRequested) {
+      app.quit();
+    }
+  });
 }
 
 app.whenReady().then(() => {
   createWindow();
+  createTray();
+
+  // Global snip hotkey; registration can fail if another app owns it — non-fatal.
+  globalShortcut.register("Ctrl+Alt+S", () => takeScreenshot("region"));
 
   if (app.isPackaged) {
     // Downloads in the background, notifies the user, installs on quit.
@@ -87,10 +110,172 @@ app.whenReady().then(() => {
   });
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+
+// Shows the window, recreating it if it was closed to tray. onReady runs once
+// the renderer is loaded and able to receive IPC.
+function showMainWindow(onReady) {
+  if (!mainWindow) {
+    createWindow();
+    if (onReady) {
+      mainWindow.webContents.once("did-finish-load", onReady);
+    }
+  } else {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    if (onReady) {
+      onReady();
+    }
   }
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createTray() {
+  tray = new Tray(path.join(__dirname, "assets", "icon.ico"));
+  tray.setToolTip("DocOpen");
+  tray.on("double-click", showMainWindow);
+  rebuildTrayMenu();
+}
+
+function rebuildTrayMenu() {
+  if (!tray) {
+    return;
+  }
+
+  const delayItem = (label, ms) => ({
+    label,
+    type: "radio",
+    checked: screenshotDelayMs === ms,
+    click: () => {
+      screenshotDelayMs = ms;
+      rebuildTrayMenu();
+    }
+  });
+
+  const newDocItem = (label, kind) => ({
+    label,
+    click: () => {
+      showMainWindow(() => mainWindow.webContents.send("document:newRequest", kind));
+    }
+  });
+
+  const recentItems = trayRecentFiles.slice(0, 10).map((file) => ({
+    label: file.fileName || path.basename(file.filePath),
+    click: () => {
+      showMainWindow(() => openPathInWindow(file.filePath));
+    }
+  }));
+
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: "Take Screenshot",
+        submenu: [
+          { label: "Region\tCtrl+Alt+S", click: () => takeScreenshot("region") },
+          { label: "Full Screen", click: () => takeScreenshot("fullscreen") },
+          { label: "All Screens", click: () => takeScreenshot("all") },
+          { type: "separator" },
+          delayItem("No delay", 0),
+          delayItem("3 second delay", 3000),
+          delayItem("5 second delay", 5000),
+          delayItem("10 second delay", 10000)
+        ]
+      },
+      {
+        label: "New Document",
+        submenu: [
+          newDocItem("Word document", "word"),
+          newDocItem("Excel workbook", "workbook"),
+          newDocItem("CSV", "csv"),
+          newDocItem("Markdown", "markdown"),
+          newDocItem("Text file", "text"),
+          newDocItem("Image", "image")
+        ]
+      },
+      {
+        label: "Recently Opened",
+        enabled: recentItems.length > 0,
+        submenu: recentItems
+      },
+      { type: "separator" },
+      { label: "Open DocOpen", click: () => showMainWindow() },
+      {
+        label: "Quit",
+        click: () => {
+          quitRequested = true;
+          app.quit();
+        }
+      }
+    ])
+  );
+}
+
+async function takeScreenshot(mode) {
+  if (screenshotBusy) {
+    return;
+  }
+  screenshotBusy = true;
+
+  const win = mainWindow; // may be null in tray-only state
+  const wasVisible = Boolean(win && win.isVisible() && !win.isMinimized());
+  try {
+    if (wasVisible) {
+      win.hide();
+      // Give the compositor a beat to actually remove the window from screen.
+      await new Promise((r) => setTimeout(r, 250));
+    }
+
+    const image = await captureScreenshot(mode, screenshotDelayMs);
+    if (wasVisible && !win.isDestroyed()) {
+      win.show();
+    }
+    if (!image || image.isEmpty()) {
+      return;
+    }
+
+    clipboard.writeImage(image);
+    const size = image.getSize();
+    showMainWindow(() =>
+      mainWindow.webContents.send("screenshot:new", {
+        dataUrl: image.toDataURL(),
+        width: size.width,
+        height: size.height
+      })
+    );
+  } catch (error) {
+    if (wasVisible && win && !win.isDestroyed()) {
+      win.show();
+    }
+    console.error("Screenshot failed:", error);
+  } finally {
+    screenshotBusy = false;
+  }
+}
+
+ipcMain.handle("screenshot:capture", async (_event, mode, delayMs) => {
+  if (typeof delayMs === "number" && delayMs >= 0 && delayMs <= 60000) {
+    screenshotDelayMs = delayMs;
+    rebuildTrayMenu();
+  }
+  await takeScreenshot(["region", "fullscreen", "all"].includes(mode) ? mode : "region");
+  return { ok: true };
+});
+
+// Renderer owns the recent-files list (localStorage); it mirrors changes here
+// so the tray menu stays in sync.
+ipcMain.on("recent:sync", (_event, files) => {
+  trayRecentFiles = Array.isArray(files)
+    ? files.filter((f) => f && typeof f.filePath === "string").slice(0, 10)
+    : [];
+  rebuildTrayMenu();
+});
+
+app.on("window-all-closed", () => {
+  // Keep the app alive in the tray; quitting happens via the tray menu.
 });
 
 ipcMain.on("document:dirty", (_event, isDirty) => {
@@ -102,6 +287,12 @@ ipcMain.on("document:closeConfirmed", () => {
   if (mainWindow) {
     mainWindow.close();
   }
+});
+
+// The user cancelled the unsaved-changes dialog; if this close came from the
+// tray's Quit, forget that intent so a later plain window close parks in tray.
+ipcMain.on("document:closeCancelled", () => {
+  quitRequested = false;
 });
 
 ipcMain.handle("document:open", async () => {
@@ -212,6 +403,19 @@ ipcMain.handle("clipboard:writeImage", (_event, dataUrl) => {
   return { ok: true };
 });
 
+ipcMain.handle("clipboard:writeImageFromPath", async (_event, filePath) => {
+  const validation = await validateOpenPath(filePath);
+  if (!validation.ok) {
+    return { ok: false };
+  }
+  const image = nativeImage.createFromPath(validation.filePath);
+  if (image.isEmpty()) {
+    return { ok: false };
+  }
+  clipboard.writeImage(image);
+  return { ok: true };
+});
+
 ipcMain.handle("clipboard:readImage", () => {
   const image = clipboard.readImage();
   return image.isEmpty() ? null : image.toDataURL();
@@ -283,6 +487,8 @@ async function openVerifiedPath(filePath) {
     return validation;
   }
 
+  // Feeds the Windows taskbar jump list ("Recent" on right-click).
+  app.addRecentDocument(validation.filePath);
   return openDocument(validation.filePath);
 }
 

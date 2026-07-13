@@ -461,6 +461,9 @@ button {
 .sheet-panel {
   display: grid;
   gap: 8px;
+  /* Never flex-squish a panel out of view; the recent panel re-enables
+     shrinking below (its list scrolls internally instead). */
+  flex-shrink: 0;
 }
 
 .file-panel {

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; }
+  #frozen { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #shade { position: fixed; inset: 0; }
+  #hint {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    padding: 8px 16px; border-radius: 8px; background: rgba(16, 17, 20, 0.85);
+    color: #e8e9ec; font: 13px "Segoe UI", sans-serif; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<img id="frozen" alt="" />
+<canvas id="shade"></canvas>
+<div id="hint">Drag to capture a region &nbsp;·&nbsp; Esc to cancel</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const displayId = params.get("displayId");
+  const pixelWidth = Number(params.get("pixelWidth"));
+  const pixelHeight = Number(params.get("pixelHeight"));
+
+  const frozen = document.getElementById("frozen");
+  frozen.src = params.get("img");
+
+  const shade = document.getElementById("shade");
+  const context = shade.getContext("2d");
+  let drag = null;
+
+  function resize() {
+    shade.width = window.innerWidth;
+    shade.height = window.innerHeight;
+    draw();
+  }
+
+  function draw(rect) {
+    context.clearRect(0, 0, shade.width, shade.height);
+    context.fillStyle = "rgba(0, 0, 0, 0.45)";
+    context.fillRect(0, 0, shade.width, shade.height);
+    if (rect) {
+      context.clearRect(rect.x, rect.y, rect.width, rect.height);
+      context.strokeStyle = "#4da3ff";
+      context.lineWidth = 1;
+      context.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
+    }
+  }
+
+  function dragRect(event) {
+    return {
+      x: Math.min(drag.x, event.clientX),
+      y: Math.min(drag.y, event.clientY),
+      width: Math.abs(event.clientX - drag.x),
+      height: Math.abs(event.clientY - drag.y)
+    };
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
+
+  shade.addEventListener("mousedown", (event) => {
+    drag = { x: event.clientX, y: event.clientY };
+    document.getElementById("hint").hidden = true;
+  });
+
+  shade.addEventListener("mousemove", (event) => {
+    if (drag) {
+      draw(dragRect(event));
+    }
+  });
+
+  shade.addEventListener("mouseup", (event) => {
+    if (!drag) {
+      return;
+    }
+    const rect = dragRect(event);
+    drag = null;
+    if (rect.width < 3 || rect.height < 3) {
+      draw();
+      document.getElementById("hint").hidden = false;
+      return;
+    }
+    // Map CSS pixels to capture pixels (handles display scale factor).
+    const scaleX = pixelWidth / window.innerWidth;
+    const scaleY = pixelHeight / window.innerHeight;
+    window.snip.done({
+      displayId,
+      x: Math.round(rect.x * scaleX),
+      y: Math.round(rect.y * scaleY),
+      width: Math.round(rect.width * scaleX),
+      height: Math.round(rect.height * scaleY)
+    });
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      window.snip.cancel();
+    }
+  });
+</script>
+</body>
+</html>

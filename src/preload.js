@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("documentOpener", {
   saveDocument: (payload) => ipcRenderer.invoke("document:save", payload),
   saveDocumentAs: (payload) => ipcRenderer.invoke("document:saveAs", payload),
   copyImageToClipboard: (dataUrl) => ipcRenderer.invoke("clipboard:writeImage", dataUrl),
+  copyImageFileToClipboard: (filePath) => ipcRenderer.invoke("clipboard:writeImageFromPath", filePath),
   readImageFromClipboard: () => ipcRenderer.invoke("clipboard:readImage"),
   revealPath: (filePath) => ipcRenderer.invoke("document:revealPath", filePath),
   onOpenedFromSystem: (callback) => {
@@ -26,5 +27,18 @@ contextBridge.exposeInMainWorld("documentOpener", {
     ipcRenderer.on("document:requestClose", listener);
     return () => ipcRenderer.removeListener("document:requestClose", listener);
   },
-  confirmClose: () => ipcRenderer.send("document:closeConfirmed")
+  confirmClose: () => ipcRenderer.send("document:closeConfirmed"),
+  cancelClose: () => ipcRenderer.send("document:closeCancelled"),
+  captureScreenshot: (mode, delayMs) => ipcRenderer.invoke("screenshot:capture", mode, delayMs),
+  onScreenshot: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("screenshot:new", listener);
+    return () => ipcRenderer.removeListener("screenshot:new", listener);
+  },
+  onNewDocumentRequest: (callback) => {
+    const listener = (_event, kind) => callback(kind);
+    ipcRenderer.on("document:newRequest", listener);
+    return () => ipcRenderer.removeListener("document:newRequest", listener);
+  },
+  syncRecentFiles: (files) => ipcRenderer.send("recent:sync", files)
 });

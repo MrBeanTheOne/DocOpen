@@ -146,6 +146,7 @@ sidebarToggleGlyph.textContent = "<";
 sidebarRail.setAttribute("aria-hidden", "true");
 renderRecentFiles();
 renderBackupHistory();
+window.documentOpener.syncRecentFiles?.(recentFiles);
 
 openButton.addEventListener("click", async () => {
   closeNewMenu();
@@ -578,6 +579,28 @@ window.documentOpener.onOpenedFromSystem(async (result) => {
   handleOpenResult(result);
 });
 
+// Tray "New Document" submenu.
+window.documentOpener.onNewDocumentRequest?.(async (kind) => {
+  await createNewDocument(kind);
+});
+
+// A screenshot arrives as a fresh image tab, already in edit mode for annotation.
+window.documentOpener.onScreenshot?.(async (payload) => {
+  if (typeof payload?.dataUrl !== "string" || !payload.dataUrl.startsWith("data:image/")) {
+    return;
+  }
+
+  const stamp = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  await createNewDocument("image", {
+    dataUrl: payload.dataUrl,
+    width: payload.width,
+    height: payload.height,
+    fileName: `Screenshot ${stamp.getFullYear()}-${pad(stamp.getMonth() + 1)}-${pad(stamp.getDate())} ${pad(stamp.getHours())}${pad(stamp.getMinutes())}${pad(stamp.getSeconds())}.png`
+  });
+  setStatus("Screenshot captured (also on clipboard)");
+});
+
 // The window was closed with unsaved changes; confirm with the in-app dialog.
 window.documentOpener.onRequestClose?.(async () => {
   snapshotActiveTab();
@@ -600,6 +623,7 @@ window.documentOpener.onRequestClose?.(async () => {
   });
 
   if (result.action === "cancel") {
+    window.documentOpener.cancelClose?.(); // Also forgets a pending tray-Quit intent.
     return; // Keep the window open.
   }
   if (result.action === "secondary") {
@@ -979,9 +1003,10 @@ function createBlankImageDocument(options = {}) {
     ok: true,
     kind: "image",
     filePath: "",
-    fileName: "Untitled image.png",
+    fileName: options.fileName || "Untitled image.png",
     extension: ".png",
     isNew: true,
+    dataUrl: options.dataUrl || "",
     width: options.width || 1280,
     height: options.height || 720,
     layoutWidth: documentLayout
@@ -1098,6 +1123,86 @@ function highlightJson(text) {
   return html;
 }
 
+let imageMenuCleanup = null;
+
+function closeImageContextMenu() {
+  if (imageMenuCleanup) {
+    imageMenuCleanup();
+    imageMenuCleanup = null;
+  }
+}
+
+// Copies the whole image (edited canvas state when painting, otherwise the
+// document) to the OS clipboard.
+async function copyWholeImage() {
+  if (currentDocument?.kind !== "image") {
+    return;
+  }
+
+  let result = null;
+  if (imageCanvas) {
+    result = await window.documentOpener.copyImageToClipboard(imageCanvas.toDataURL("image/png"));
+  } else if (currentDocument.dataUrl) {
+    result = await window.documentOpener.copyImageToClipboard(currentDocument.dataUrl);
+  } else if (currentDocument.filePath) {
+    result = await window.documentOpener.copyImageFileToClipboard(currentDocument.filePath);
+  }
+  setStatus(result?.ok ? "Image copied to clipboard" : "Could not copy this image");
+}
+
+function showImageContextMenu(event) {
+  event.preventDefault();
+  closeImageContextMenu();
+
+  const menu = document.createElement("div");
+  menu.className = "new-menu";
+  menu.style.position = "fixed";
+  menu.style.left = `${event.clientX}px`;
+  menu.style.top = `${event.clientY}px`;
+  menu.style.right = "auto";
+  menu.style.width = "170px";
+
+  const copyItem = document.createElement("button");
+  copyItem.type = "button";
+  copyItem.className = "new-menu-item";
+  copyItem.style.gridTemplateColumns = "1fr";
+  copyItem.style.padding = "0 12px";
+  copyItem.textContent = "Copy image";
+  copyItem.addEventListener("click", async () => {
+    closeImageContextMenu();
+    await copyWholeImage();
+  });
+  menu.appendChild(copyItem);
+  document.body.appendChild(menu);
+
+  // Keep the menu inside the window near the edges.
+  const rect = menu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    menu.style.left = `${Math.max(0, window.innerWidth - rect.width - 4)}px`;
+  }
+  if (rect.bottom > window.innerHeight) {
+    menu.style.top = `${Math.max(0, window.innerHeight - rect.height - 4)}px`;
+  }
+
+  const dismiss = (dismissEvent) => {
+    if (!menu.contains(dismissEvent.target)) {
+      closeImageContextMenu();
+    }
+  };
+  const onKey = (keyEvent) => {
+    if (keyEvent.key === "Escape") {
+      closeImageContextMenu();
+    }
+  };
+  document.addEventListener("pointerdown", dismiss, true);
+  document.addEventListener("keydown", onKey, true);
+  imageMenuCleanup = () => {
+    document.removeEventListener("pointerdown", dismiss, true);
+    document.removeEventListener("keydown", onKey, true);
+    menu.remove();
+  };
+}
+
 function renderImageDocument(imageData) {
   wordEditor = null;
   savedWordRange = null;
@@ -1122,6 +1227,7 @@ function renderImageDocument(imageData) {
   image.className = "image-frame";
   image.alt = imageData.fileName;
   image.addEventListener("load", () => image.classList.add("is-loaded"));
+  image.addEventListener("contextmenu", showImageContextMenu);
   image.src = imageData.dataUrl || imageData.fileUrl;
 
   let zoom = null; // null = fit to view
@@ -1175,6 +1281,7 @@ function renderImagePaint(imageData) {
 
   const canvas = document.createElement("canvas");
   canvas.className = "paint-canvas";
+  canvas.addEventListener("contextmenu", showImageContextMenu);
   const context = canvas.getContext("2d");
 
   const selectionBox = document.createElement("div");
@@ -3761,6 +3868,7 @@ function saveRecentFiles() {
   } catch {
     // Recent files are helpful, but never worth blocking document work.
   }
+  window.documentOpener.syncRecentFiles?.(recentFiles);
 }
 
 function loadBackupHistory() {
