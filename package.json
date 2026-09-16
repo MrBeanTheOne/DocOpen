@@ -3,6 +3,7 @@
   "version": "0.10.2",
   "description": "A dead simple dark-mode Electron app for opening Word, Excel, and PDF documents.",
   "author": "Retile",
+  "license": "UNLICENSED",
   "main": "src/main.js",
   "private": true,
   "type": "commonjs",
