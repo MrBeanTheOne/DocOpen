@@ -119,7 +119,7 @@ app.on("will-quit", () => {
 function showMainWindow(onReady) {
   if (!mainWindow) {
     createWindow();
-    if (onReady) {
+    if (typeof onReady === "function") {
       mainWindow.webContents.once("did-finish-load", onReady);
     }
   } else {
@@ -137,7 +137,7 @@ function showMainWindow(onReady) {
 function createTray() {
   tray = new Tray(path.join(__dirname, "assets", "icon.ico"));
   tray.setToolTip("DocOpen");
-  tray.on("double-click", showMainWindow);
+  tray.on("double-click", () => showMainWindow());
   rebuildTrayMenu();
 }
 

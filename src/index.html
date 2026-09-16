@@ -121,7 +121,7 @@
           <div class="document-head">
             <span class="document-kind kind-empty" id="documentKind" hidden>No file</span>
             <div class="document-copy">
-              <span class="eyebrow" id="modeLabel">Read-only preview</span>
+              <span class="eyebrow" id="modeLabel">Nothing open</span>
               <h2 id="documentTitle">No document selected</h2>
             </div>
           </div>
@@ -515,10 +515,10 @@
             </select>
             <select class="toolbar-select" id="fillToleranceSelect" aria-label="Fill tolerance" title="Fill tolerance">
               <option value="0">Exact</option>
-              <option value="16">Tol 16</option>
-              <option value="32" selected>Tol 32</option>
-              <option value="64">Tol 64</option>
-              <option value="96">Tol 96</option>
+              <option value="16">&plusmn;16</option>
+              <option value="32" selected>&plusmn;32</option>
+              <option value="64">&plusmn;64</option>
+              <option value="96">&plusmn;96</option>
             </select>
             <button type="button" class="tool-button" data-image-action="undo" aria-label="Undo paint" title="Undo (Ctrl+Z)">
               <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -599,6 +599,11 @@
               </svg>
             </div>
             <h3>No document open</h3>
+            <p>
+              Drop a file anywhere, click <strong>Open</strong>, or press <kbd>Ctrl</kbd><kbd>O</kbd>.
+              Start fresh with <kbd>Ctrl</kbd><kbd>N</kbd>.
+            </p>
+            <p class="empty-formats">Word &middot; Excel &middot; CSV &middot; PDF &middot; Markdown &middot; JSON &middot; Text &middot; Images</p>
           </div>
         </div>
       </section>

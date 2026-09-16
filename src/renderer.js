@@ -21,6 +21,9 @@ const sidebarRail = document.querySelector("#sidebarRail");
 const appShell = document.querySelector("#appShell");
 const dropZone = document.querySelector("#dropZone");
 const viewer = document.querySelector("#viewer");
+// The welcome empty state ships in index.html; keep a copy so closing the
+// last tab restores it instead of a bare heading.
+const emptyStateHtml = viewer.innerHTML;
 const tabStrip = document.querySelector("#tabStrip");
 const documentKind = document.querySelector("#documentKind");
 const currentFilePanel = document.querySelector("#currentFilePanel");
@@ -492,6 +495,12 @@ document.addEventListener("keydown", async (event) => {
       return;
     }
     await saveCurrentDocument(false);
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") {
+    event.preventDefault();
+    openButton.click();
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+    event.preventDefault();
+    toggleNewMenu();
   } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && editMode && currentDocument?.kind === "image") {
     event.preventDefault();
     if (event.shiftKey) {
@@ -1173,6 +1182,21 @@ function showImageContextMenu(event) {
     await copyWholeImage();
   });
   menu.appendChild(copyItem);
+
+  if (canSaveCurrentDocument()) {
+    const saveItem = document.createElement("button");
+    saveItem.type = "button";
+    saveItem.className = "new-menu-item";
+    saveItem.style.gridTemplateColumns = "1fr";
+    saveItem.style.padding = "0 12px";
+    saveItem.textContent = "Save as…";
+    saveItem.addEventListener("click", async () => {
+      closeImageContextMenu();
+      await saveCurrentDocument(true);
+    });
+    menu.appendChild(saveItem);
+  }
+
   document.body.appendChild(menu);
 
   // Keep the menu inside the window near the edges.
@@ -2397,7 +2421,7 @@ function renderError(message) {
   sheetPanel.hidden = true;
   sheetList.replaceChildren();
   enableDocumentActions(false);
-  viewer.replaceChildren(emptyBlock(message));
+  viewer.innerHTML = emptyStateHtml;
 }
 
 function emptyBlock(message) {
@@ -3276,7 +3300,7 @@ function updateDocumentActionVisibility() {
 
 function updateModeLabel() {
   if (!currentDocument) {
-    modeLabel.textContent = "Read-only preview";
+    modeLabel.textContent = "Nothing open";
   } else if (!isEditableDocument(currentDocument)) {
     modeLabel.textContent = "Read-only document";
   } else {

@@ -1435,6 +1435,10 @@ body[data-document-kind="pdf"] .viewer {
   font-weight: 650;
 }
 
+.color-control {
+  border-color: var(--border-2);
+}
+
 .toolbar-select {
   max-width: 148px;
   padding: 0 8px;
@@ -1578,6 +1582,7 @@ body[data-document-kind="pdf"] .viewer {
   cursor: pointer;
   font-size: 12px;
   font-weight: 650;
+  white-space: nowrap;
 }
 
 .find-button:hover {
@@ -1693,9 +1698,37 @@ body[data-document-kind="pdf"] .viewer {
 
 .empty-state p {
   max-width: 520px;
-  margin: 10px auto 0;
+  margin: 0 auto;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.empty-state strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.empty-formats {
+  font-size: 11.5px;
+  color: var(--faint);
+  letter-spacing: 0.02em;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  margin: 0 1px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--text);
+  background: var(--panel-2);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .word-document {
