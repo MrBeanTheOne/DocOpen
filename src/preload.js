@@ -40,5 +40,13 @@ contextBridge.exposeInMainWorld("documentOpener", {
     ipcRenderer.on("document:newRequest", listener);
     return () => ipcRenderer.removeListener("document:newRequest", listener);
   },
-  syncRecentFiles: (files) => ipcRenderer.send("recent:sync", files)
+  syncRecentFiles: (files) => ipcRenderer.send("recent:sync", files),
+  appVersion: () => ipcRenderer.invoke("app:version"),
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  onUpdateStatus: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on("update:status", listener);
+    return () => ipcRenderer.removeListener("update:status", listener);
+  }
 });

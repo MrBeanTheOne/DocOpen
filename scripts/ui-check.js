@@ -403,6 +403,30 @@ const TEST = `(async () => {
   document.querySelector("#rawViewButton").click();
   check(Boolean(cell(0, 0)), "toggling raw off should restore the CSV grid");
 
+  // 16. Update foot: IPC round-trip plus each state's rendering.
+  await window.documentOpener.checkForUpdates();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  check(updateState === "dev", "an unpackaged check should report the dev state, got " + JSON.stringify(updateState));
+  check(document.querySelector("#updateButton").hidden, "dev builds should hide the update button");
+
+  applyUpdateStatus({ state: "checking" });
+  check(document.querySelector("#updateButton").disabled, "checking should disable the button");
+  applyUpdateStatus({ state: "downloading", version: "9.9.9", percent: 0 });
+  applyUpdateStatus({ state: "downloading", percent: 42 });
+  check(!document.querySelector("#updateBar").hidden, "downloading should show the progress bar");
+  check(document.querySelector("#updateBarFill").style.width === "42%", "progress fill should track the percent, got " + document.querySelector("#updateBarFill").style.width);
+  check(
+    document.querySelector("#updateText").textContent === "Downloading v9.9.9 - 42%",
+    "progress events carry no version, so the one from update-available should stick, got " + JSON.stringify(document.querySelector("#updateText").textContent)
+  );
+  applyUpdateStatus({ state: "ready", version: "9.9.9" });
+  check(document.querySelector("#updateButton").textContent === "Restart", "a staged update should offer Restart");
+  check(document.querySelector("#updateBar").hidden, "the progress bar should go away once staged");
+  applyUpdateStatus({ state: "current" });
+  check(document.querySelector("#updateText").textContent === "Up to date", "no update should say so");
+  check(document.querySelector("#updateButton").textContent === "Check", "the Restart label should not survive the next check");
+  setUpdateIdle();
+
   // Leave no crash-recovery bait behind: app.exit() skips before-quit cleanup.
   await window.documentOpener.clearAutosave();
 

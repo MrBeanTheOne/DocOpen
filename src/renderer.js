@@ -5162,3 +5162,99 @@ async function restoreAutosave() {
 
 setInterval(autosaveTick, AUTOSAVE_INTERVAL_MS);
 restoreAutosave();
+
+// --- Auto-update -----------------------------------------------------------
+// Main relays electron-updater's events here; the sidebar foot shows where the
+// download is and turns into a Restart button once the installer is staged.
+
+const updateText = document.querySelector("#updateText");
+const updateButton = document.querySelector("#updateButton");
+const updateBar = document.querySelector("#updateBar");
+const updateBarFill = document.querySelector("#updateBarFill");
+
+let updateState = "idle";
+let updateIdleLabel = "DocOpen";
+let updatePendingVersion = "";
+let updateIdleTimer = null;
+
+function setUpdateIdle() {
+  applyUpdateStatus({ state: "idle" });
+}
+
+function applyUpdateStatus(status) {
+  window.clearTimeout(updateIdleTimer);
+  updateState = status.state;
+  updateButton.hidden = false;
+  updateButton.textContent = "Check";
+  updateButton.disabled = false;
+  updateBar.hidden = true;
+  updateText.classList.remove("is-ready");
+
+  if (status.version) {
+    updatePendingVersion = status.version;
+  }
+
+  switch (status.state) {
+    case "checking":
+      updateText.textContent = "Checking for updates...";
+      updateButton.disabled = true;
+      break;
+    case "downloading": {
+      const percent = typeof status.percent === "number" ? status.percent : 0;
+      updateText.textContent = `Downloading v${updatePendingVersion} - ${percent}%`;
+      updateButton.hidden = true;
+      updateBar.hidden = false;
+      updateBarFill.style.width = `${percent}%`;
+      break;
+    }
+    case "ready":
+      updateText.textContent = `v${updatePendingVersion} ready to install`;
+      updateText.classList.add("is-ready");
+      updateButton.textContent = "Restart";
+      showToast(`DocOpen v${updatePendingVersion} is ready - restart to install`);
+      break;
+    case "current":
+      updateText.textContent = "Up to date";
+      updateIdleTimer = window.setTimeout(setUpdateIdle, 4000);
+      break;
+    case "error":
+      updateText.textContent = "Update check failed";
+      updateButton.textContent = "Retry";
+      break;
+    case "dev":
+      updateText.textContent = "Dev build - updates off";
+      updateButton.hidden = true;
+      break;
+    default:
+      updateText.textContent = updateIdleLabel;
+  }
+}
+
+updateButton?.addEventListener("click", async () => {
+  if (updateState === "ready") {
+    if (tabs.some((tab) => tab.isDirty)) {
+      const go = await showConfirm({
+        title: "Restart to install?",
+        message: "You have unsaved changes. They will be lost when DocOpen restarts.",
+        tone: "warning",
+        primaryLabel: "Restart anyway"
+      });
+      if (!go) {
+        return;
+      }
+    }
+    window.documentOpener.installUpdate?.();
+    return;
+  }
+  window.documentOpener.checkForUpdates?.();
+});
+
+window.documentOpener.onUpdateStatus?.(applyUpdateStatus);
+window.documentOpener.appVersion?.().then((version) => {
+  updateIdleLabel = `DocOpen v${version}`;
+  if (updateState === "idle") {
+    setUpdateIdle();
+  }
+});
+setUpdateIdle();
+window.documentOpener.checkForUpdates?.();

@@ -98,11 +98,6 @@ app.whenReady().then(() => {
   // Global snip hotkey; registration can fail if another app owns it — non-fatal.
   globalShortcut.register("Ctrl+Alt+S", () => takeScreenshot("region"));
 
-  if (app.isPackaged) {
-    // Downloads in the background, notifies the user, installs on quit.
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-  }
-
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -606,3 +601,42 @@ function defaultExtensionForKind(kind) {
   }
   return ".xlsx";
 }
+
+// --- Auto-update -----------------------------------------------------------
+// electron-updater reads latest.yml from the GitHub release feed. Main only
+// relays its events; the renderer owns the UI (sidebar foot) and decides when
+// to check and when to restart. The renderer checks once per window load.
+
+function sendUpdateStatus(state, extra = {}) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("update:status", { state, ...extra });
+  }
+}
+
+autoUpdater.on("checking-for-update", () => sendUpdateStatus("checking"));
+// autoDownload is on by default, so "available" already means "downloading".
+autoUpdater.on("update-available", (info) => sendUpdateStatus("downloading", { version: info.version, percent: 0 }));
+autoUpdater.on("update-not-available", () => sendUpdateStatus("current"));
+autoUpdater.on("download-progress", (progress) => sendUpdateStatus("downloading", { percent: Math.round(progress.percent) }));
+autoUpdater.on("update-downloaded", (info) => sendUpdateStatus("ready", { version: info.version }));
+autoUpdater.on("error", (error) => sendUpdateStatus("error", { message: String((error && error.message) || error) }));
+
+ipcMain.handle("update:check", () => {
+  if (!app.isPackaged) {
+    // Dev runs report Electron's own version and have no feed to compare to.
+    sendUpdateStatus("dev");
+    return;
+  }
+  // Failures arrive on the "error" event; the rejection here is the same one.
+  autoUpdater.checkForUpdates().catch(() => {});
+});
+
+ipcMain.handle("update:install", () => {
+  // The renderer already handled unsaved work, so bypass the dirty-close guard
+  // — otherwise the close handler would cancel the quit half-way through.
+  allowClose = true;
+  quitRequested = true;
+  autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle("app:version", () => app.getVersion());

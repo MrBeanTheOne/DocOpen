@@ -164,6 +164,51 @@ button {
   overflow: auto;
 }
 
+.update-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.update-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--faint);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.update-text.is-ready {
+  color: var(--accent-text);
+}
+
+.update-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.update-bar > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width var(--dur-base) var(--ease);
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -217,6 +262,7 @@ button {
 }
 
 .app-shell.sidebar-collapsed .sidebar-head,
+.app-shell.sidebar-collapsed .update-foot,
 .app-shell.sidebar-collapsed .sidebar-body {
   display: none;
 }
