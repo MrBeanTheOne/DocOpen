@@ -5188,6 +5188,7 @@ function applyUpdateStatus(status) {
   updateButton.textContent = "Check";
   updateButton.disabled = false;
   updateBar.hidden = true;
+  updateText.title = "";
   updateText.classList.remove("is-ready");
 
   if (status.version) {
@@ -5219,6 +5220,8 @@ function applyUpdateStatus(status) {
       break;
     case "error":
       updateText.textContent = "Update check failed";
+      // The reason is too long for the foot; keep it on hover.
+      updateText.title = status.message || "";
       updateButton.textContent = "Retry";
       break;
     case "dev":
