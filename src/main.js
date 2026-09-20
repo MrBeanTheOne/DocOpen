@@ -636,7 +636,9 @@ ipcMain.handle("update:install", () => {
   // — otherwise the close handler would cancel the quit half-way through.
   allowClose = true;
   quitRequested = true;
-  autoUpdater.quitAndInstall();
+  // (silent, relaunch): the defaults pop the full NSIS wizard and leave the
+  // app closed, which is not what a button labelled "Restart" promises.
+  autoUpdater.quitAndInstall(true, true);
 });
 
 ipcMain.handle("app:version", () => app.getVersion());
