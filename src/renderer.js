@@ -479,6 +479,7 @@ document.addEventListener("keydown", async (event) => {
   }
 
   if (event.key === "Escape") {
+    closeSettings();
     closeNewMenu();
     isSelectingRange = false;
     toggleFindBar(false);
@@ -5163,6 +5164,74 @@ async function restoreAutosave() {
 setInterval(autosaveTick, AUTOSAVE_INTERVAL_MS);
 restoreAutosave();
 
+// --- Settings --------------------------------------------------------------
+// localStorage is the source of truth (same deal as recent files); main gets a
+// copy of the ones it enforces through settings:sync. Changes apply on tick —
+// the dialog has no Save button.
+
+const SETTINGS_KEY = "docopen.settings";
+const DEFAULT_SETTINGS = { closeToTray: true, checkUpdatesOnLaunch: true };
+
+const settingsButton = document.querySelector("#settingsButton");
+const settingsOverlay = document.querySelector("#settingsOverlay");
+const settingsCloseButton = document.querySelector("#settingsCloseButton");
+const closeToTraySetting = document.querySelector("#closeToTraySetting");
+const checkUpdatesSetting = document.querySelector("#checkUpdatesSetting");
+
+const settings = loadSettings();
+
+function loadSettings() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}");
+    return { ...DEFAULT_SETTINGS, ...(parsed && typeof parsed === "object" ? parsed : {}) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings() {
+  try {
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // A settings write failing is not worth interrupting document work over.
+  }
+  return window.documentOpener.syncSettings?.(settings);
+}
+
+function openSettings() {
+  closeToTraySetting.checked = settings.closeToTray;
+  checkUpdatesSetting.checked = settings.checkUpdatesOnLaunch;
+  settingsOverlay.hidden = false;
+  document.body.classList.add("has-dialog");
+  settingsCloseButton.focus();
+}
+
+function closeSettings() {
+  settingsOverlay.hidden = true;
+  document.body.classList.remove("has-dialog");
+}
+
+settingsButton?.addEventListener("click", openSettings);
+settingsCloseButton?.addEventListener("click", closeSettings);
+settingsOverlay?.addEventListener("click", (event) => {
+  if (event.target === settingsOverlay) {
+    closeSettings();
+  }
+});
+
+closeToTraySetting?.addEventListener("change", () => {
+  settings.closeToTray = closeToTraySetting.checked;
+  saveSettings();
+});
+
+checkUpdatesSetting?.addEventListener("change", () => {
+  settings.checkUpdatesOnLaunch = checkUpdatesSetting.checked;
+  saveSettings();
+});
+
+// Main starts on the defaults, so mirror the stored values at every launch.
+saveSettings();
+
 // --- Auto-update -----------------------------------------------------------
 // Main relays electron-updater's events here; the sidebar foot shows where the
 // download is and turns into a Restart button once the installer is staged.
@@ -5260,4 +5329,6 @@ window.documentOpener.appVersion?.().then((version) => {
   }
 });
 setUpdateIdle();
-window.documentOpener.checkForUpdates?.();
+if (settings.checkUpdatesOnLaunch) {
+  window.documentOpener.checkForUpdates?.();
+}

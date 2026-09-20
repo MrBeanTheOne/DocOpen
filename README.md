@@ -30,6 +30,7 @@
 - 💾 **Autosave & crash recovery** — dirty tabs are snapshotted every 30 seconds and offered back if the app ever closes uncleanly.
 - 🛟 **Safe saves** — every save drops a timestamped `.bak` next to the original first; **Revert** restores the last saved/opened state in the session.
 - ⬆️ **Auto-updates** — the sidebar foot shows the installed version, checks on launch, streams the download with a progress bar, and turns into a **Restart** button once the new version is staged.
+- ⚙️ **Settings** — the gear in the sidebar: keep running in the tray when the window closes, and check for updates on launch. Saved per machine, applied as you tick them.
 
 ## 📁 Supported formats
 

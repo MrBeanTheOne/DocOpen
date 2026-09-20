@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld("documentOpener", {
     return () => ipcRenderer.removeListener("document:newRequest", listener);
   },
   syncRecentFiles: (files) => ipcRenderer.send("recent:sync", files),
+  syncSettings: (settings) => ipcRenderer.invoke("settings:sync", settings),
   appVersion: () => ipcRenderer.invoke("app:version"),
   checkForUpdates: () => ipcRenderer.invoke("update:check"),
   installUpdate: () => ipcRenderer.invoke("update:install"),

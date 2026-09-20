@@ -18,6 +18,12 @@
               <p>Word, Excel, and PDF</p>
             </div>
           </div>
+          <button class="icon-button" id="settingsButton" type="button" aria-label="Settings" title="Settings">
+            <svg class="ui-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.2" />
+              <path d="M8 1.6v1.6M8 12.8v1.6M14.4 8h-1.6M3.2 8H1.6M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1M12.5 12.5l-1.1-1.1M4.6 4.6 3.5 3.5" />
+            </svg>
+          </button>
           <button class="icon-button" id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
             <span id="sidebarToggleGlyph">&lt;</span>
           </button>
@@ -618,6 +624,36 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="dialog-overlay" id="settingsOverlay" hidden>
+      <section class="app-dialog" id="settingsDialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="dialog-head">
+          <span class="dialog-icon" aria-hidden="true">S</span>
+          <div class="dialog-copy">
+            <h3 id="settingsTitle">Settings</h3>
+            <p>Saved on this machine, applied as you change them.</p>
+          </div>
+        </div>
+        <div class="settings-list">
+          <label class="settings-row">
+            <input type="checkbox" id="closeToTraySetting" />
+            <span class="settings-copy">
+              <strong>Keep running in the tray</strong>
+              <small>Closing the window parks DocOpen in the tray. Off: closing the window quits it.</small>
+            </span>
+          </label>
+          <label class="settings-row">
+            <input type="checkbox" id="checkUpdatesSetting" />
+            <span class="settings-copy">
+              <strong>Check for updates on launch</strong>
+              <small>Off: nothing is fetched until you press Check in the sidebar.</small>
+            </span>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button" id="settingsCloseButton" type="button">Done</button>
+        </div>
+      </section>
+    </div>
     <div class="dialog-overlay" id="dialogOverlay" hidden>
       <section class="app-dialog" id="appDialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
         <div class="dialog-head">

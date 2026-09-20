@@ -15,6 +15,9 @@ let screenshotDelayMs = 0;
 let screenshotBusy = false;
 let trayRecentFiles = [];
 let quitRequested = false;
+// Mirrored from the renderer (localStorage is the source of truth, same deal as
+// the recent-files list); main only needs the ones it enforces itself.
+let settings = { closeToTray: true };
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -60,6 +63,12 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 
   mainWindow.on("close", (event) => {
+    if (!settings.closeToTray) {
+      // A cancelled unsaved-changes prompt clears this again via
+      // "document:closeCancelled", so a cancelled quit does not linger.
+      quitRequested = true;
+    }
+
     if (allowClose || !documentDirty) {
       return;
     }
@@ -642,3 +651,8 @@ ipcMain.handle("update:install", () => {
 });
 
 ipcMain.handle("app:version", () => app.getVersion());
+
+ipcMain.handle("settings:sync", (_event, next) => {
+  settings = { closeToTray: next?.closeToTray !== false };
+  return settings;
+});

@@ -427,6 +427,65 @@ const TEST = `(async () => {
   check(document.querySelector("#updateButton").textContent === "Check", "the Restart label should not survive the next check");
   setUpdateIdle();
 
+  // 17. Settings: dialog wiring, persistence, and the mirror to main.
+  // Drive from the live object, not from disk — app.exit() can skip the
+  // localStorage flush, so the previous run's values are not a given.
+  settings.closeToTray = true;
+  settings.checkUpdatesOnLaunch = true;
+  document.querySelector("#settingsButton").click();
+  check(!document.querySelector("#settingsOverlay").hidden, "the gear should open the settings dialog");
+  check(
+    document.querySelector("#closeToTraySetting").checked && document.querySelector("#checkUpdatesSetting").checked,
+    "opening settings should mirror the live values into the checkboxes"
+  );
+
+  const trayToggle = document.querySelector("#closeToTraySetting");
+  trayToggle.checked = false;
+  trayToggle.dispatchEvent(new Event("change", { bubbles: true }));
+  check(settings.closeToTray === false, "unticking should update the live settings object");
+  check(
+    JSON.parse(window.localStorage.getItem("docopen.settings")).closeToTray === false,
+    "settings should persist to localStorage on change"
+  );
+  const mirrored = await window.documentOpener.syncSettings(settings);
+  check(mirrored.closeToTray === false, "main should apply the mirrored setting, got " + JSON.stringify(mirrored));
+
+  const updatesToggle = document.querySelector("#checkUpdatesSetting");
+  updatesToggle.checked = false;
+  updatesToggle.dispatchEvent(new Event("change", { bubbles: true }));
+  check(settings.checkUpdatesOnLaunch === false, "the update-check setting should follow its checkbox");
+
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  check(document.querySelector("#settingsOverlay").hidden, "Escape should close the settings dialog");
+  document.querySelector("#settingsButton").click();
+  document.querySelector("#settingsCloseButton").click();
+  check(document.querySelector("#settingsOverlay").hidden, "Done should close the settings dialog");
+
+  // Layout (capturePage is unusable in the agent sandbox — assert geometry).
+  document.querySelector("#settingsButton").click();
+  const dlg = document.querySelector("#settingsDialog").getBoundingClientRect();
+  const rows = [...document.querySelectorAll(".settings-row")].map((r) => r.getBoundingClientRect());
+  check(dlg.width > 300 && dlg.height > 200, "settings dialog should have real size, got " + JSON.stringify([dlg.width, dlg.height]));
+  check(Math.abs((dlg.left + dlg.right) / 2 - window.innerWidth / 2) < 2, "settings dialog should be centred");
+  check(rows.length === 2 && rows[0].bottom <= rows[1].top + 1, "the two settings rows should stack without overlapping");
+  check(
+    rows.every((r) => r.left >= dlg.left - 1 && r.right <= dlg.right + 1 && r.height > 30),
+    "settings rows should sit inside the dialog with room for their copy, got " + JSON.stringify(rows.map((r) => r.height))
+  );
+  const box = document.querySelector("#closeToTraySetting").getBoundingClientRect();
+  check(
+    document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) === document.querySelector("#closeToTraySetting"),
+    "the tray checkbox should be the top element at its own centre (nothing covering it)"
+  );
+  const gear = document.querySelector("#settingsButton").getBoundingClientRect();
+  check(gear.width > 20 && gear.height > 20, "the sidebar gear should be a real target, got " + JSON.stringify([gear.width, gear.height]));
+  document.querySelector("#settingsCloseButton").click();
+
+  // Leave the dev profile (and main) back on the defaults.
+  settings.closeToTray = true;
+  settings.checkUpdatesOnLaunch = true;
+  await saveSettings();
+
   // Leave no crash-recovery bait behind: app.exit() skips before-quit cleanup.
   await window.documentOpener.clearAutosave();
 
