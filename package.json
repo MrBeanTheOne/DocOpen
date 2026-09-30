@@ -1,6 +1,6 @@
 {
   "name": "docopen",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "A dead simple dark-mode Electron app for opening Word, Excel, and PDF documents.",
   "author": "Retile",
   "license": "UNLICENSED",
@@ -70,14 +70,17 @@
           "gif",
           "webp",
           "bmp",
-          "svg"
+          "svg",
+          "ico",
+          "avif"
         ],
         "name": "Image",
         "role": "Viewer"
       },
       {
         "ext": [
-          "md"
+          "md",
+          "markdown"
         ],
         "name": "Markdown document",
         "role": "Editor"
@@ -87,6 +90,7 @@
   "dependencies": {
     "electron-updater": "^6.8.9",
     "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
     "mammoth": "^1.8.0"
   },
   "devDependencies": {

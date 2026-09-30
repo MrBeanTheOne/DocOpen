@@ -673,6 +673,12 @@
     </div>
 
     <script src="./formula.js"></script>
+    <!-- Classic scripts sharing the global scope; renderer.js carries all
+         top-level init and wiring, so it must load last. -->
+    <script src="./markdown.js"></script>
+    <script src="./sanitizer.js"></script>
+    <script src="./paint.js"></script>
+    <script src="./workbook.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>

@@ -4,9 +4,10 @@ const { pathToFileURL } = require("node:url");
 const ExcelJS = require("exceljs");
 const mammoth = require("mammoth");
 
-const TEXT_EXTENSIONS = new Set([".txt", ".log", ".json"]);
-const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"]);
-const SUPPORTED_EXTENSIONS = new Set([".docx", ".xlsx", ".csv", ".pdf", ".md", ...TEXT_EXTENSIONS, ...IMAGE_EXTENSIONS]);
+const TEXT_EXTENSIONS = new Set([".txt", ".log", ".json", ".jsonl", ".yaml", ".yml", ".xml", ".ini", ".cfg", ".conf"]);
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico", ".avif"]);
+const MARKDOWN_EXTENSIONS = new Set([".md", ".markdown"]);
+const SUPPORTED_EXTENSIONS = new Set([".docx", ".xlsx", ".csv", ".pdf", ...MARKDOWN_EXTENSIONS, ...TEXT_EXTENSIONS, ...IMAGE_EXTENSIONS]);
 
 async function openDocument(filePath) {
   const extension = path.extname(filePath).toLowerCase();
@@ -27,8 +28,8 @@ async function openDocument(filePath) {
       return await openPdfDocument(filePath);
     }
 
-    if (extension === ".md") {
-      return await openMarkdownDocument(filePath);
+    if (MARKDOWN_EXTENSIONS.has(extension)) {
+      return await openMarkdownDocument(filePath, extension);
     }
 
     if (TEXT_EXTENSIONS.has(extension)) {
@@ -80,7 +81,7 @@ async function openWordDocument(filePath) {
   };
 }
 
-async function openMarkdownDocument(filePath) {
+async function openMarkdownDocument(filePath, extension = ".md") {
   const metadata = await fileMetadata(filePath);
   const text = await fs.readFile(filePath, "utf8");
 
@@ -89,7 +90,7 @@ async function openMarkdownDocument(filePath) {
     kind: "markdown",
     filePath,
     fileName: path.basename(filePath),
-    extension: ".md",
+    extension,
     ...metadata,
     text
   };

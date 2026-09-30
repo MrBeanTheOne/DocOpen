@@ -39,10 +39,11 @@
 | Word | `.docx` | Full rich-text editor |
 | Excel | `.xlsx` | Cells, rows/columns, formulas |
 | CSV | `.csv` | Cells, rows/columns |
-| Markdown | `.md` | Text editor + rendered preview |
-| Text / logs / JSON | `.txt`, `.log`, `.json` | Text editor (JSON gets pretty-print) |
+| Markdown | `.md`, `.markdown` | Text editor + rendered preview |
+| Text / logs / JSON | `.txt`, `.log`, `.json`, `.jsonl` | Text editor (JSON gets pretty-print) |
+| Config / data | `.yaml`/`.yml`, `.xml`, `.ini`, `.cfg`/`.conf` | Text editor |
 | Images | `.png`, `.jpg`/`.jpeg` | Full paint editor |
-| Images (other) | `.gif`, `.webp`, `.bmp`, `.svg` | View only |
+| Images (other) | `.gif`, `.webp`, `.bmp`, `.svg`, `.ico`, `.avif` | View only |
 | PDF | `.pdf` | Read-only preview |
 
 Legacy `.doc` and `.xls` are intentionally out of scope.

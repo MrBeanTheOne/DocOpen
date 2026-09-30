@@ -304,12 +304,12 @@ ipcMain.handle("document:open", async () => {
     title: "Open a document",
     properties: ["openFile"],
     filters: [
-      { name: "Documents", extensions: ["docx", "xlsx", "csv", "pdf", "md", "txt", "log", "json", "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"] },
+      { name: "Documents", extensions: ["docx", "xlsx", "csv", "pdf", "md", "markdown", "txt", "log", "json", "jsonl", "yaml", "yml", "xml", "ini", "cfg", "conf", "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico", "avif"] },
       { name: "Word", extensions: ["docx"] },
       { name: "Excel", extensions: ["xlsx", "csv"] },
-      { name: "Markdown", extensions: ["md"] },
-      { name: "Text", extensions: ["txt", "log", "json"] },
-      { name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"] },
+      { name: "Markdown", extensions: ["md", "markdown"] },
+      { name: "Text", extensions: ["txt", "log", "json", "jsonl", "yaml", "yml", "xml", "ini", "cfg", "conf"] },
+      { name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico", "avif"] },
       { name: "PDF", extensions: ["pdf"] }
     ]
   });
@@ -552,8 +552,8 @@ function validateSavePayload(payload, options = {}) {
   const allowedExtensions = {
     word: [".docx", ".md", ".txt"],
     workbook: [".xlsx", ".csv"],
-    markdown: [".md", ".docx", ".txt"],
-    text: [".txt", ".log", ".json", ".md"]
+    markdown: [".md", ".markdown", ".docx", ".txt"],
+    text: [".txt", ".log", ".json", ".jsonl", ".yaml", ".yml", ".xml", ".ini", ".cfg", ".conf", ".md"]
   };
   if (allowedExtensions[payload.kind] && extension && !allowedExtensions[payload.kind].includes(extension)) {
     return {

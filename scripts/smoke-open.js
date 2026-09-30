@@ -36,6 +36,9 @@ async function main() {
   const markdownPath = path.join(tempDir, "sample.md");
   const textPath = path.join(tempDir, "sample.txt");
   const jsonPath = path.join(tempDir, "sample.json");
+  const yamlPath = path.join(tempDir, "sample.yaml");
+  const markdownAliasPath = path.join(tempDir, "sample.markdown");
+  const icoPath = path.join(tempDir, "sample.ico");
   const imagePath = path.join(tempDir, "sample.png");
 
   await writeSampleWorkbook(xlsxPath);
@@ -45,6 +48,10 @@ async function main() {
   await fs.writeFile(markdownPath, "# Notes\n\n- Coffee\n- Notebook\n", "utf8");
   await fs.writeFile(textPath, "plain notes\nline two\n", "utf8");
   await fs.writeFile(jsonPath, '{"name":"Coffee","amount":4.25}\n', "utf8");
+  await fs.writeFile(yamlPath, "name: Coffee\namount: 4.25\n", "utf8");
+  await fs.writeFile(markdownAliasPath, "# Alias\n", "utf8");
+  // Reader never decodes image bytes (the renderer displays via fileUrl), so any payload works.
+  await fs.writeFile(icoPath, Buffer.from([0, 0, 1, 0]));
   await fs.writeFile(
     imagePath,
     Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64")
@@ -198,6 +205,26 @@ async function main() {
   assert(json.kind === "text", "Expected .json to be a text document");
   assert(json.text.includes('"Coffee"'), "Expected .json text to load");
 
+  // Config-style text extensions ride the text kind end to end.
+  const yaml = await openDocument(yamlPath);
+  assert(yaml.ok, "Expected sample .yaml to open");
+  assert(yaml.kind === "text", "Expected .yaml to be a text document");
+  assert(yaml.extension === ".yaml", "Expected .yaml to keep its extension");
+  const savedYaml = await saveDocument({ ...yaml, text: "name: Tea\n" });
+  assert(savedYaml.ok, "Expected sample .yaml to save");
+  const reopenedYaml = await openDocument(yamlPath);
+  assert(reopenedYaml.text.includes("Tea"), "Expected saved .yaml text to match");
+
+  const markdownAlias = await openDocument(markdownAliasPath);
+  assert(markdownAlias.ok, "Expected sample .markdown to open");
+  assert(markdownAlias.kind === "markdown", "Expected .markdown to be a Markdown document");
+  assert(markdownAlias.extension === ".markdown", "Expected .markdown to keep its extension");
+
+  const ico = await openDocument(icoPath);
+  assert(ico.ok, "Expected sample .ico to open");
+  assert(ico.kind === "image", "Expected .ico to be an image document");
+  assert(ico.fileUrl.startsWith("file:///"), "Expected .ico to expose a file URL");
+
   // Cross-format saves: word -> .md/.txt, markdown -> .docx.
   const wordAsMdPath = path.join(tempDir, "word-export.md");
   const savedWordMd = await saveDocument({
@@ -257,7 +284,7 @@ async function main() {
   assert(copiedImage.ok, "Expected image Save As without edits to copy the source file");
   assert(await fileExists(copiedImagePath), "Expected copied image to exist");
 
-  console.log("Smoke check passed: opened .pdf read-only and opened, edited, saved, and reopened .docx, .xlsx, .csv, .md, .txt, .json, and .png samples.");
+  console.log("Smoke check passed: opened .pdf/.ico read-only and opened, edited, saved, and reopened .docx, .xlsx, .csv, .md, .markdown, .txt, .json, .yaml, and .png samples.");
 }
 
 async function writeSampleWorkbook(filePath) {
