@@ -1,7 +1,6 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
-const ExcelJS = require("exceljs");
-const JSZip = require("jszip");
+// exceljs and jszip are required lazily where used — see documentReader.js.
 
 async function saveDocument(payload) {
   if (!payload || !payload.filePath) {
@@ -139,6 +138,7 @@ async function saveImageDocument(filePath, payload) {
 }
 
 async function saveWorkbook(payload) {
+  const ExcelJS = require("exceljs");
   const workbook = new ExcelJS.Workbook();
 
   const isCsv = payload.extension === ".csv";
@@ -208,6 +208,7 @@ function pixelsToPoints(height) {
 }
 
 async function saveWordDocument(filePath, html, text) {
+  const JSZip = require("jszip");
   const zip = new JSZip();
   const inlinedHtml = html ? await inlineRemoteImages(html) : "";
   const blocks = inlinedHtml ? htmlToWordBlocks(inlinedHtml) : textToWordBlocks(text);

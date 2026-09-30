@@ -1,8 +1,9 @@
 const path = require("node:path");
 const fs = require("node:fs/promises");
 const { pathToFileURL } = require("node:url");
-const ExcelJS = require("exceljs");
-const mammoth = require("mammoth");
+// exceljs (~27MB RSS) and mammoth (~16MB) are required lazily in the functions
+// that use them, so the main process stays small in tray-only sessions that
+// never open a workbook or Word document.
 
 const TEXT_EXTENSIONS = new Set([".txt", ".log", ".json", ".jsonl", ".yaml", ".yml", ".xml", ".ini", ".cfg", ".conf"]);
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico", ".avif"]);
@@ -64,6 +65,7 @@ async function openPdfDocument(filePath) {
 }
 
 async function openWordDocument(filePath) {
+  const mammoth = require("mammoth");
   const metadata = await fileMetadata(filePath);
   const result = await mammoth.convertToHtml({
     path: filePath
@@ -126,6 +128,7 @@ async function openImageDocument(filePath, extension) {
 }
 
 async function openWorkbook(filePath, extension) {
+  const ExcelJS = require("exceljs");
   const workbook = new ExcelJS.Workbook();
 
   if (extension === ".csv") {

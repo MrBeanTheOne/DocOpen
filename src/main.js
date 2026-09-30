@@ -1,7 +1,6 @@
 const path = require("node:path");
 const fs = require("node:fs/promises");
 const { app, BrowserWindow, Menu, Tray, clipboard, dialog, globalShortcut, ipcMain, nativeImage, shell } = require("electron");
-const { autoUpdater } = require("electron-updater");
 const { openDocument, SUPPORTED_EXTENSIONS } = require("./documentReader");
 const { saveDocument } = require("./documentWriter");
 const { captureScreenshot } = require("./screenshot");
@@ -622,13 +621,22 @@ function sendUpdateStatus(state, extra = {}) {
   }
 }
 
-autoUpdater.on("checking-for-update", () => sendUpdateStatus("checking"));
-// autoDownload is on by default, so "available" already means "downloading".
-autoUpdater.on("update-available", (info) => sendUpdateStatus("downloading", { version: info.version, percent: 0 }));
-autoUpdater.on("update-not-available", () => sendUpdateStatus("current"));
-autoUpdater.on("download-progress", (progress) => sendUpdateStatus("downloading", { percent: Math.round(progress.percent) }));
-autoUpdater.on("update-downloaded", (info) => sendUpdateStatus("ready", { version: info.version }));
-autoUpdater.on("error", (error) => sendUpdateStatus("error", { message: String((error && error.message) || error) }));
+// electron-updater costs ~16MB RSS, so it loads on the first real check — and
+// never in dev runs, or when check-on-launch is off and the button is unused.
+let autoUpdater = null;
+function getAutoUpdater() {
+  if (!autoUpdater) {
+    ({ autoUpdater } = require("electron-updater"));
+    autoUpdater.on("checking-for-update", () => sendUpdateStatus("checking"));
+    // autoDownload is on by default, so "available" already means "downloading".
+    autoUpdater.on("update-available", (info) => sendUpdateStatus("downloading", { version: info.version, percent: 0 }));
+    autoUpdater.on("update-not-available", () => sendUpdateStatus("current"));
+    autoUpdater.on("download-progress", (progress) => sendUpdateStatus("downloading", { percent: Math.round(progress.percent) }));
+    autoUpdater.on("update-downloaded", (info) => sendUpdateStatus("ready", { version: info.version }));
+    autoUpdater.on("error", (error) => sendUpdateStatus("error", { message: String((error && error.message) || error) }));
+  }
+  return autoUpdater;
+}
 
 ipcMain.handle("update:check", () => {
   if (!app.isPackaged) {
@@ -637,7 +645,7 @@ ipcMain.handle("update:check", () => {
     return;
   }
   // Failures arrive on the "error" event; the rejection here is the same one.
-  autoUpdater.checkForUpdates().catch(() => {});
+  getAutoUpdater().checkForUpdates().catch(() => {});
 });
 
 ipcMain.handle("update:install", () => {
@@ -647,7 +655,7 @@ ipcMain.handle("update:install", () => {
   quitRequested = true;
   // (silent, relaunch): the defaults pop the full NSIS wizard and leave the
   // app closed, which is not what a button labelled "Restart" promises.
-  autoUpdater.quitAndInstall(true, true);
+  getAutoUpdater().quitAndInstall(true, true);
 });
 
 ipcMain.handle("app:version", () => app.getVersion());
