@@ -467,7 +467,10 @@ const TEST = `(async () => {
   const rows = [...document.querySelectorAll(".settings-row")].map((r) => r.getBoundingClientRect());
   check(dlg.width > 300 && dlg.height > 200, "settings dialog should have real size, got " + JSON.stringify([dlg.width, dlg.height]));
   check(Math.abs((dlg.left + dlg.right) / 2 - window.innerWidth / 2) < 2, "settings dialog should be centred");
-  check(rows.length === 2 && rows[0].bottom <= rows[1].top + 1, "the two settings rows should stack without overlapping");
+  check(
+    rows.length === 3 && rows.every((r, i) => i === 0 || rows[i - 1].bottom <= r.top + 1),
+    "the settings rows should stack without overlapping"
+  );
   check(
     rows.every((r) => r.left >= dlg.left - 1 && r.right <= dlg.right + 1 && r.height > 30),
     "settings rows should sit inside the dialog with room for their copy, got " + JSON.stringify(rows.map((r) => r.height))

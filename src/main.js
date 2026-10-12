@@ -5,6 +5,19 @@ const { openDocument, SUPPORTED_EXTENSIONS } = require("./documentReader");
 const { saveDocument } = require("./documentWriter");
 const { captureScreenshot } = require("./screenshot");
 
+// Tray RAM: software rendering shrinks the always-alive GPU process ~90MB → ~21MB,
+// and running the network service in the main process drops its 14MB utility
+// process entirely. Measured tray-only total: 174MB → 92MB private.
+// Software rendering is the default; the Settings "Hardware acceleration" toggle
+// opts back into GPU rendering. It must be decided here, before app ready and
+// before any renderer exists, so the toggle persists as a marker file in
+// userData (settings:sync maintains it) rather than in the renderer's localStorage.
+const hwAccelMarkerPath = path.join(app.getPath("userData"), "hardware-acceleration");
+if (!require("node:fs").existsSync(hwAccelMarkerPath)) {
+  app.disableHardwareAcceleration();
+}
+app.commandLine.appendSwitch("enable-features", "NetworkServiceInProcess2");
+
 let mainWindow;
 let pendingFilePath = findSupportedFileArg(process.argv);
 let documentDirty = false;
@@ -665,5 +678,16 @@ ipcMain.handle("settings:sync", (_event, next) => {
   // reopening from the tray doesn't flash dark on light themes.
   const background = /^#[0-9a-f]{6}$/i.test(String(next?.windowBackground)) ? next.windowBackground : "#101114";
   settings = { closeToTray: next?.closeToTray !== false, windowBackground: background };
+  // Hardware acceleration is read before app ready, so it lives in a marker
+  // file, not in memory; it only takes effect on the next launch.
+  try {
+    if (next?.hardwareAcceleration === true) {
+      require("node:fs").writeFileSync(hwAccelMarkerPath, "");
+    } else {
+      require("node:fs").unlinkSync(hwAccelMarkerPath);
+    }
+  } catch {
+    // ENOENT when the marker is already absent — nothing to do.
+  }
   return settings;
 });

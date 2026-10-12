@@ -2859,7 +2859,7 @@ restoreAutosave();
 // the dialog has no Save button.
 
 const SETTINGS_KEY = "docopen.settings";
-const DEFAULT_SETTINGS = { closeToTray: true, checkUpdatesOnLaunch: true, theme: "dark", accent: "#6e62f2" };
+const DEFAULT_SETTINGS = { closeToTray: true, checkUpdatesOnLaunch: true, theme: "dark", accent: "#6e62f2", hardwareAcceleration: false };
 
 // The same appearance system as Aria: themes are CSS variable blocks keyed by
 // data-theme on <html> (styles.css), accents recolor everything through
@@ -2891,6 +2891,7 @@ const settingsOverlay = document.querySelector("#settingsOverlay");
 const settingsCloseButton = document.querySelector("#settingsCloseButton");
 const closeToTraySetting = document.querySelector("#closeToTraySetting");
 const checkUpdatesSetting = document.querySelector("#checkUpdatesSetting");
+const hardwareAccelerationSetting = document.querySelector("#hardwareAccelerationSetting");
 const themeGrid = document.querySelector("#themeGrid");
 const accentRow = document.querySelector("#accentRow");
 
@@ -3006,6 +3007,7 @@ function saveSettings() {
 function openSettings() {
   closeToTraySetting.checked = settings.closeToTray;
   checkUpdatesSetting.checked = settings.checkUpdatesOnLaunch;
+  hardwareAccelerationSetting.checked = settings.hardwareAcceleration;
   settingsOverlay.hidden = false;
   document.body.classList.add("has-dialog");
   settingsCloseButton.focus();
@@ -3032,6 +3034,11 @@ closeToTraySetting?.addEventListener("change", () => {
 checkUpdatesSetting?.addEventListener("change", () => {
   settings.checkUpdatesOnLaunch = checkUpdatesSetting.checked;
   saveSettings();
+});
+
+hardwareAccelerationSetting?.addEventListener("change", () => {
+  settings.hardwareAcceleration = hardwareAccelerationSetting.checked;
+  saveSettings(); // main persists it to a marker file; applies on next launch
 });
 
 // Main starts on the defaults, so mirror the stored values at every launch.
