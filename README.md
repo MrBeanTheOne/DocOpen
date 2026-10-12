@@ -30,7 +30,9 @@
 - 💾 **Autosave & crash recovery** — dirty tabs are snapshotted every 30 seconds and offered back if the app ever closes uncleanly.
 - 🛟 **Safe saves** — every save drops a timestamped `.bak` next to the original first; **Revert** restores the last saved/opened state in the session.
 - ⬆️ **Auto-updates** — the sidebar foot shows the installed version, checks on launch, streams the download with a progress bar, and turns into a **Restart** button once the new version is staged.
-- ⚙️ **Settings** — the gear in the sidebar: keep running in the tray when the window closes, and check for updates on launch. Saved per machine, applied as you tick them.
+- 🎭 **Themes** — Dark, Light, Black, Midnight, Mocha, or Match Windows, with a choice of accent color (the same appearance system as [Aria](https://github.com/MrBeanTheOne/Aria)).
+- ⚙️ **Settings** — the gear in the sidebar: appearance, keep running in the tray when the window closes, and check for updates on launch. Saved per machine, applied as you change them.
+- ➕ **New from scratch** — the New menu creates blank Word, Excel, CSV, Markdown, text, image, JSON, YAML, XML, INI, and JSON Lines documents.
 
 ## 📁 Supported formats
 

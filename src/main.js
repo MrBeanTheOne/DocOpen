@@ -16,7 +16,7 @@ let trayRecentFiles = [];
 let quitRequested = false;
 // Mirrored from the renderer (localStorage is the source of truth, same deal as
 // the recent-files list); main only needs the ones it enforces itself.
-let settings = { closeToTray: true };
+let settings = { closeToTray: true, windowBackground: "#101114" };
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -47,7 +47,7 @@ function createWindow() {
     height: 780,
     minWidth: 900,
     minHeight: 620,
-    backgroundColor: "#101114",
+    backgroundColor: settings.windowBackground,
     title: "DocOpen",
     icon: path.join(__dirname, "assets", "icon.ico"),
     autoHideMenuBar: true,
@@ -661,6 +661,9 @@ ipcMain.handle("update:install", () => {
 ipcMain.handle("app:version", () => app.getVersion());
 
 ipcMain.handle("settings:sync", (_event, next) => {
-  settings = { closeToTray: next?.closeToTray !== false };
+  // windowBackground pre-paints recreated windows in the theme's color so
+  // reopening from the tray doesn't flash dark on light themes.
+  const background = /^#[0-9a-f]{6}$/i.test(String(next?.windowBackground)) ? next.windowBackground : "#101114";
+  settings = { closeToTray: next?.closeToTray !== false, windowBackground: background };
   return settings;
 });

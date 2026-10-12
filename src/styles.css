@@ -15,12 +15,15 @@
   --text-body: #dde1e8;
   --muted: #9aa0ac;
   --faint: #666c78;
+  /* Everything accent-tinted derives from --accent via color-mix, so the
+     accent swatch in Settings restyles the whole app. Mixing with --text
+     (instead of white) keeps hover/text shades readable on light themes. */
   --accent: #6e62f2;
-  --accent-hover: #7e73f5;
-  --accent-text: #a9a0f8;
-  --accent-bg: rgba(110, 98, 242, 0.1);
-  --accent-bg-strong: rgba(110, 98, 242, 0.16);
-  --accent-line: rgba(110, 98, 242, 0.55);
+  --accent-hover: color-mix(in srgb, var(--accent) 86%, var(--text));
+  --accent-text: color-mix(in srgb, var(--accent) 62%, var(--text));
+  --accent-bg: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-bg-strong: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 55%, transparent);
   --on-accent: #ffffff;
   --warn: #e8b765;
   --warn-bg: rgba(232, 183, 101, 0.1);
@@ -33,6 +36,14 @@
   --csv-bg: rgba(232, 183, 101, 0.11);
   --pdf: #f2616b;
   --pdf-bg: rgba(242, 97, 107, 0.11);
+  --grid-line: #20242c;
+  --cell-bg: #12151b;
+  --cell-bg-alt: #151820;
+  --json-key: #79c0ff;
+  --json-string: #7ee787;
+  --json-number: #d2a8ff;
+  --json-boolean: #ffa657;
+  --json-null: #ff7b72;
   --edge-light: rgba(255, 255, 255, 0.035);
   --shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-card: inset 0 1px 0 var(--edge-light), 0 1px 2px rgba(0, 0, 0, 0.35),
@@ -53,6 +64,105 @@
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   font-family: var(--sans);
+}
+
+/* Themes: the same palette as Aria (Dark / Light / Black / Midnight / Mocha),
+   mapped onto DocOpen's variable roles. The renderer sets data-theme on <html>
+   ("system" resolves to dark/light there); no attribute = the dark defaults. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f6;
+  --bg-elevated: #ffffff;
+  --panel: #efeff2;
+  --panel-2: #ffffff;
+  --panel-3: #e8e8ec;
+  --panel-4: #c6c6cd;
+  --header-bg: #eaeaee;
+  --card: #ffffff;
+  --border: #dcdce1;
+  --border-2: #d0d0d6;
+  --border-strong: #b1b1ba;
+  --text: #1d1d1f;
+  --text-body: #2a2a2e;
+  --muted: #6c6c74;
+  --faint: #8e8e96;
+  --edge-light: rgba(255, 255, 255, 0.55);
+  --warn: #b07510;
+  --word: #2563eb;
+  --workbook: #0e8d7e;
+  --csv: #b07510;
+  --pdf: #d13438;
+  --shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 2px rgba(16, 18, 24, 0.1);
+  --shadow-card: inset 0 1px 0 var(--edge-light), 0 1px 2px rgba(16, 18, 24, 0.08),
+    0 18px 48px -18px rgba(16, 18, 24, 0.25);
+  --shadow-pop: 0 10px 28px -6px rgba(16, 18, 24, 0.22), 0 2px 8px -2px rgba(16, 18, 24, 0.14);
+  --grid-line: #d8d8de;
+  --cell-bg: #ffffff;
+  --cell-bg-alt: #f6f6f8;
+  --json-key: #0550ae;
+  --json-string: #116329;
+  --json-number: #6639ba;
+  --json-boolean: #953800;
+  --json-null: #cf222e;
+}
+
+:root[data-theme="black"] {
+  --bg: #000000;
+  --bg-elevated: #0a0a0b;
+  --panel: #050506;
+  --panel-2: #121214;
+  --panel-3: #1b1b1e;
+  --panel-4: #27272b;
+  --header-bg: #050506;
+  --card: #0c0c0e;
+  --border: #1b1b1e;
+  --border-2: #27272b;
+  --border-strong: #3a3a40;
+  --grid-line: #1d1d21;
+  --cell-bg: #0a0a0c;
+  --cell-bg-alt: #0e0e11;
+}
+
+:root[data-theme="midnight"] {
+  --bg: #10141d;
+  --bg-elevated: #131826;
+  --panel: #121620;
+  --panel-2: #1d2331;
+  --panel-3: #273042;
+  --panel-4: #323c52;
+  --header-bg: #0f131b;
+  --card: #161b26;
+  --border: #242c3d;
+  --border-2: #2c3548;
+  --border-strong: #3e4a63;
+  --text: #e7ebf3;
+  --text-body: #d5dbe7;
+  --muted: #8b94a8;
+  --faint: #677184;
+  --grid-line: #2a3347;
+  --cell-bg: #141927;
+  --cell-bg-alt: #171d2c;
+}
+
+:root[data-theme="mocha"] {
+  --bg: #171310;
+  --bg-elevated: #1b1613;
+  --panel: #191512;
+  --panel-2: #28221e;
+  --panel-3: #342c27;
+  --panel-4: #453a33;
+  --header-bg: #15110f;
+  --card: #1f1a17;
+  --border: #2e2722;
+  --border-2: #3b322c;
+  --border-strong: #52453c;
+  --text: #f3ece6;
+  --text-body: #e4dad1;
+  --muted: #a3968b;
+  --faint: #7a6f65;
+  --grid-line: #352c26;
+  --cell-bg: #1c1714;
+  --cell-bg-alt: #201a16;
 }
 
 * {
@@ -395,6 +505,12 @@ button {
   box-shadow: var(--shadow-pop);
 }
 
+.new-menu-sep {
+  height: 1px;
+  margin: 3px 5px;
+  background: var(--border-2);
+}
+
 .new-menu-item {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -453,13 +569,14 @@ button {
 }
 
 .icon-button {
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
   padding: 0;
-  border-color: transparent;
-  color: var(--faint);
-  background: transparent;
+  border-color: var(--border-2);
+  color: var(--muted);
+  background: var(--panel-2);
+  box-shadow: var(--shadow-btn);
 }
 
 .ghost-button:hover:not(:disabled),
@@ -1027,7 +1144,7 @@ section.is-collapsed .panel-toggle::before {
 
 .sheet-tab.is-active::before {
   color: var(--accent-text);
-  background: rgba(110, 98, 242, 0.13);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
 
 .workspace {
@@ -1060,8 +1177,8 @@ section.is-collapsed .panel-toggle::before {
   opacity: 1;
   transform: scale(1);
   border-color: var(--accent-line);
-  background: rgba(110, 98, 242, 0.055);
-  box-shadow: inset 0 0 0 1px var(--accent-bg), 0 14px 44px -34px rgba(110, 98, 242, 0.85);
+  background: color-mix(in srgb, var(--accent) 5.5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent-bg), 0 14px 44px -34px color-mix(in srgb, var(--accent) 85%, transparent);
 }
 
 body.has-tabs {
@@ -1370,9 +1487,102 @@ body.has-tabs {
   box-shadow: var(--shadow-focus);
 }
 
+.settings-dialog {
+  width: min(600px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow-y: auto;
+  gap: 20px;
+}
+
 .settings-list {
   display: grid;
+  gap: 20px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 9px;
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.theme-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theme-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.theme-chip[aria-pressed="true"] {
+  border-color: var(--accent-line);
+  color: var(--text);
+  background: var(--accent-bg);
+  box-shadow: inset 0 0 0 1px var(--accent-bg-strong);
+}
+
+.theme-swatch {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+.accent-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.accent-dot {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.accent-dot span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--dot, var(--accent));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.accent-dot:hover {
+  border-color: var(--border-strong);
+}
+
+.accent-dot[aria-pressed="true"] {
+  border-color: var(--text);
 }
 
 .settings-row {
@@ -1785,7 +1995,7 @@ body[data-document-kind="pdf"] .viewer {
   border-radius: var(--radius-md);
   color: var(--accent-text);
   background: var(--panel-2);
-  box-shadow: inset 0 1px 0 var(--edge-light), 0 14px 30px -24px rgba(110, 98, 242, 0.9);
+  box-shadow: inset 0 1px 0 var(--edge-light), 0 14px 30px -24px color-mix(in srgb, var(--accent) 90%, transparent);
 }
 
 .empty-state p {
@@ -1874,13 +2084,13 @@ kbd {
 
 .word-document h1 {
   padding-bottom: 0.38em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+  border-bottom: 1px solid var(--border-2);
   font-size: 28px;
 }
 
 .word-document h2 {
   padding-bottom: 0.42em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+  border-bottom: 1px solid var(--border-2);
   font-size: 22px;
 }
 
@@ -1916,9 +2126,9 @@ kbd {
   border-color: var(--accent-line);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.055),
-    0 0 0 1px rgba(110, 98, 242, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
     0 24px 64px -24px rgba(0, 0, 0, 0.76),
-    0 0 34px -22px rgba(110, 98, 242, 0.72);
+    0 0 34px -22px color-mix(in srgb, var(--accent) 72%, transparent);
 }
 
 .markdown-document {
@@ -1972,23 +2182,23 @@ kbd {
 }
 
 .json-view .json-key {
-  color: #79c0ff;
+  color: var(--json-key);
 }
 
 .json-view .json-string {
-  color: #7ee787;
+  color: var(--json-string);
 }
 
 .json-view .json-number {
-  color: #d2a8ff;
+  color: var(--json-number);
 }
 
 .json-view .json-boolean {
-  color: #ffa657;
+  color: var(--json-boolean);
 }
 
 .json-view .json-null {
-  color: #ff7b72;
+  color: var(--json-null);
 }
 
 .image-document {
@@ -2099,7 +2309,7 @@ kbd {
 
 .markdown-document h1 {
   padding-bottom: 0.38em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+  border-bottom: 1px solid var(--border-2);
   font-size: 28px;
 }
 
@@ -2317,7 +2527,7 @@ kbd {
   max-width: none;
   height: var(--row-height);
   padding: 4px 8px;
-  border: 1px solid #20242c;
+  border: 1px solid var(--grid-line);
   vertical-align: top;
   overflow-wrap: anywhere;
   font-size: 12px;
@@ -2369,12 +2579,12 @@ kbd {
 
 .sheet-table td {
   color: var(--text-body);
-  background: #12151b;
+  background: var(--cell-bg);
   outline: none;
 }
 
 .sheet-table tr:nth-child(even) td {
-  background: #151820;
+  background: var(--cell-bg-alt);
 }
 
 .sheet-table td[contenteditable="true"] {
@@ -2411,8 +2621,8 @@ kbd {
 }
 
 .sheet-table td.is-range-selected:not(.is-selected) {
-  background: rgba(110, 98, 242, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(110, 98, 242, 0.28);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .column-resize-handle,
@@ -2433,7 +2643,7 @@ kbd {
 
 .column-resize-handle:hover,
 body.is-resizing-sheet .column-resize-handle {
-  background: rgba(110, 98, 242, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .row-resize-handle {
@@ -2446,7 +2656,7 @@ body.is-resizing-sheet .column-resize-handle {
 
 .row-resize-handle:hover,
 body.is-resizing-sheet .row-resize-handle {
-  background: rgba(110, 98, 242, 0.18);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 body.is-resizing-sheet {

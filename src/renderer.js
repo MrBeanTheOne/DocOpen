@@ -188,6 +188,13 @@ newImageButton.addEventListener("click", async () => {
   });
 });
 
+// New > data/config formats: all reuse the text kind with another extension.
+document.querySelectorAll("[data-new-text]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    await createNewDocument("text", { extension: button.dataset.newText });
+  });
+});
+
 editButton.addEventListener("click", () => {
   setEditMode(!editMode);
 });
@@ -920,13 +927,14 @@ function createBlankMarkdownDocument() {
   };
 }
 
-function createBlankTextDocument() {
+function createBlankTextDocument(options = {}) {
+  const extension = options.extension || ".txt";
   return {
     ok: true,
     kind: "text",
     filePath: "",
-    fileName: "Untitled.txt",
-    extension: ".txt",
+    fileName: `Untitled${extension}`,
+    extension,
     text: "",
     isNew: true,
     layoutWidth: documentLayout
@@ -1835,10 +1843,21 @@ function documentIdentity(documentData) {
   }
 
   if (documentData.kind === "text") {
+    const badges = {
+      ".json": "{ }",
+      ".jsonl": "JSL",
+      ".log": "LOG",
+      ".yaml": "YML",
+      ".yml": "YML",
+      ".xml": "XML",
+      ".ini": "INI",
+      ".cfg": "INI",
+      ".conf": "INI"
+    };
     return {
       bodyKind: "text",
       className: "kind-text",
-      icon: documentData.extension === ".json" ? "{ }" : documentData.extension === ".log" ? "LOG" : "TXT",
+      icon: badges[documentData.extension] || "TXT",
       label: "Text"
     };
   }
@@ -2840,24 +2859,135 @@ restoreAutosave();
 // the dialog has no Save button.
 
 const SETTINGS_KEY = "docopen.settings";
-const DEFAULT_SETTINGS = { closeToTray: true, checkUpdatesOnLaunch: true };
+const DEFAULT_SETTINGS = { closeToTray: true, checkUpdatesOnLaunch: true, theme: "dark", accent: "#6e62f2" };
+
+// The same appearance system as Aria: themes are CSS variable blocks keyed by
+// data-theme on <html> (styles.css), accents recolor everything through
+// color-mix on --accent. "system" follows Windows' light/dark app mode.
+const APP_THEMES = [
+  { id: "dark", label: "Dark", swatch: "#111318" },
+  { id: "light", label: "Light", swatch: "#ffffff" },
+  { id: "black", label: "Black", swatch: "#000000" },
+  { id: "midnight", label: "Midnight", swatch: "#161b26" },
+  { id: "mocha", label: "Mocha", swatch: "#1f1a17" },
+  { id: "system", label: "Match Windows", swatch: "linear-gradient(135deg, #ffffff 50%, #111318 50%)" }
+];
+
+// Aria's accent palette, plus DocOpen's own violet as the default.
+const APP_ACCENTS = [
+  { label: "DocOpen violet", color: "#6e62f2" },
+  { label: "Aria red", color: "#fa2d48" },
+  { label: "Pink", color: "#e8458b" },
+  { label: "Orange", color: "#f97316" },
+  { label: "Gold", color: "#eab308" },
+  { label: "Green", color: "#22c55e" },
+  { label: "Teal", color: "#14b8a6" },
+  { label: "Blue", color: "#3b82f6" },
+  { label: "Purple", color: "#8b5cf6" }
+];
 
 const settingsButton = document.querySelector("#settingsButton");
 const settingsOverlay = document.querySelector("#settingsOverlay");
 const settingsCloseButton = document.querySelector("#settingsCloseButton");
 const closeToTraySetting = document.querySelector("#closeToTraySetting");
 const checkUpdatesSetting = document.querySelector("#checkUpdatesSetting");
+const themeGrid = document.querySelector("#themeGrid");
+const accentRow = document.querySelector("#accentRow");
 
 const settings = loadSettings();
 
 function loadSettings() {
+  let settingsData;
   try {
     const parsed = JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}");
-    return { ...DEFAULT_SETTINGS, ...(parsed && typeof parsed === "object" ? parsed : {}) };
+    settingsData = { ...DEFAULT_SETTINGS, ...(parsed && typeof parsed === "object" ? parsed : {}) };
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    settingsData = { ...DEFAULT_SETTINGS };
   }
+  if (!APP_THEMES.some((theme) => theme.id === settingsData.theme)) {
+    settingsData.theme = DEFAULT_SETTINGS.theme;
+  }
+  if (!/^#[0-9a-f]{6}$/i.test(String(settingsData.accent))) {
+    settingsData.accent = DEFAULT_SETTINGS.accent;
+  }
+  return settingsData;
 }
+
+/** Text color that stays readable on the accent (dark text on gold). */
+function onAccentColor(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? "#111111" : "#ffffff";
+}
+
+function applyAppearance() {
+  const root = document.documentElement;
+  const resolved =
+    settings.theme === "system"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+      : settings.theme;
+  root.dataset.theme = resolved;
+  root.style.setProperty("--accent", settings.accent);
+  root.style.setProperty("--on-accent", onAccentColor(settings.accent));
+  syncAppearanceControls();
+}
+
+function syncAppearanceControls() {
+  themeGrid?.querySelectorAll(".theme-chip").forEach((chip) => {
+    chip.setAttribute("aria-pressed", String(chip.dataset.themeId === settings.theme));
+  });
+  accentRow?.querySelectorAll(".accent-dot").forEach((dot) => {
+    dot.setAttribute("aria-pressed", String(dot.dataset.color === settings.accent.toLowerCase()));
+  });
+}
+
+APP_THEMES.forEach((theme) => {
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "theme-chip";
+  chip.dataset.themeId = theme.id;
+  const swatch = document.createElement("span");
+  swatch.className = "theme-swatch";
+  swatch.style.background = theme.swatch;
+  const label = document.createElement("span");
+  label.textContent = theme.label;
+  chip.append(swatch, label);
+  chip.addEventListener("click", () => {
+    settings.theme = theme.id;
+    applyAppearance();
+    saveSettings();
+  });
+  themeGrid?.append(chip);
+});
+
+APP_ACCENTS.forEach((accent) => {
+  const dot = document.createElement("button");
+  dot.type = "button";
+  dot.className = "accent-dot";
+  dot.dataset.color = accent.color;
+  dot.title = accent.label;
+  dot.setAttribute("aria-label", `${accent.label} accent`);
+  const fill = document.createElement("span");
+  fill.style.background = accent.color;
+  dot.append(fill);
+  dot.addEventListener("click", () => {
+    settings.accent = accent.color;
+    applyAppearance();
+    saveSettings();
+  });
+  accentRow?.append(dot);
+});
+
+// Only matters for "Match Windows": re-resolve when Windows flips light/dark.
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (settings.theme === "system") {
+    applyAppearance();
+    saveSettings(); // refresh main's pre-paint color too
+  }
+});
+
+applyAppearance();
 
 function saveSettings() {
   try {
@@ -2865,7 +2995,12 @@ function saveSettings() {
   } catch {
     // A settings write failing is not worth interrupting document work over.
   }
-  return window.documentOpener.syncSettings?.(settings);
+  // windowBackground is derived, not stored: main pre-paints recreated windows
+  // with the active theme's background so tray-reopens don't flash dark.
+  return window.documentOpener.syncSettings?.({
+    ...settings,
+    windowBackground: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
+  });
 }
 
 function openSettings() {
